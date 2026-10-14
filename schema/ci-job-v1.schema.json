@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pica.community/schema/ci-job-v1.schema.json",
+  "title": "Pica CI job",
+  "description": "One package's fetch-and-build declaration, consumed by .github/scripts/fetch_assets.py and the release workflow.",
+  "type": "object",
+  "required": ["mgr", "id", "manifest", "source", "build"],
+  "properties": {
+    "schema": { "const": "pica-ci-job-v1" },
+    "mgr": {
+      "enum": ["opkg", "apk", "pica"],
+      "description": "Backend this job builds for. Assets land in pkgs/<mgr>/, so it must match the manifest's targets."
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Package directory name under src/<mgr>/. Suffixes like @immortalwrt are allowed for variants."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Set false to skip this package without deleting it."
+    },
+    "manifest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path to the source manifest, e.g. src/opkg/openclash/manifest. The manifest declares targets; this file must not."
+    },
+    "source": {
+      "type": "object",
+      "required": ["provider"],
+      "properties": {
+        "provider": {
+          "enum": ["github", "http_template"],
+          "description": "github reads a release; http_template expands url_template with {arch}/{version}/{platform}."
+        },
+        "repo": {
+          "type": "string",
+          "description": "owner/name. Required when provider is github."
+        },
+        "version": {
+          "type": "string",
+          "description": "Literal or {latest}. Used by http_template."
+        },
+        "url_template": { "type": "string" },
+        "url_templates": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "release": {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "type": "object",
+              "properties": {
+                "mode": { "enum": ["regex", "exact", "latest"] },
+                "regex": { "type": "string" },
+                "value": { "type": "string" }
+              },
+              "additionalProperties": false
+            },
+            "allow_prerelease": { "type": "boolean" },
+            "assets": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/asset" }
+            }
+          },
+          "required": ["assets"],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "versioning": {
+      "type": "object",
+      "properties": {
+        "pkgver": {
+          "type": "object",
+          "properties": {
+            "from": { "enum": ["manifest", "asset", "tag"] },
+            "fallback": {}
+          },
+          "additionalProperties": true
+        },
+        "pkgrel": {
+          "type": "object",
+          "properties": {
+            "from": { "enum": ["manifest", "fixed"] },
+            "fallback": {}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "build": {
+      "type": "object",
+      "required": ["matrix"],
+      "properties": {
+        "matrix": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["platform", "arch"],
+            "properties": {
+              "platform": { "type": "string", "minLength": 1 },
+              "arch": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          },
+          "description": "One build variant per <platform>/<arch> combination."
+        },
+        "include_dirs": {
+          "type": "array",
+          "items": { "enum": ["scripts", "root", "pkgs"] },
+          "description": "Optional. The package layout these are the only directories pica-pack reads."
+        },
+        "pack": {
+          "type": "object",
+          "properties": {
+            "tool": { "const": "pica-pack" },
+            "format": { "const": "pkg.tar.gz" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "publish": {
+      "type": "object",
+      "properties": {
+        "registry_db": { "type": "string" },
+        "keep_release_history": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "asset": {
+      "type": "object",
+      "required": ["name", "regex"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": ["app", "base", "kmod", "luci", "i18n", "config", "data"],
+          "description": "What the asset contributes to the manifest."
+        },
+        "regex": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Matched against the upstream asset filename."
+        },
+        "inner_regex": {
+          "type": "string",
+          "description": "For zip assets: the member to extract."
+        },
+        "required": {
+          "type": "boolean",
+          "default": true,
+          "description": "Fail the job when no asset matches."
+        },
+        "capture_to": {
+          "type": "object",
+          "description": "Maps a named regex group to platform or arch.",
+          "properties": {
+            "platform": { "type": "integer" },
+            "arch": { "type": "integer" }
+          },
+          "additionalProperties": false
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "platform": { "type": "string" },
+            "arch": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

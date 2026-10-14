@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "rtp2httpd@jarod360",
@@ -73,9 +72,7 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/rtp2httpd@jarod360/db.json",
-    "keep_release_history": 1,
-    "artifact_url_template": "https://example.invalid/pica/releases/{id}/{filename}"
+    "keep_release_history": 1
   }
 }

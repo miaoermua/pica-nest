@@ -1,7 +1,6 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
-  "mgr": "none",
+  "mgr": "opkg",
   "id": "cattools",
   "enabled": true,
   "manifest": "src/none/cattools/manifest",
@@ -52,7 +51,6 @@
     ]
   },
   "publish": {
-    "manifest_index": "src/none/manifest.json",
     "registry_db": "r/none/cattools/db.json"
   }
 }

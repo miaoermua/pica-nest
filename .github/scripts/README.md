@@ -9,7 +9,7 @@
 
 *   **GitHub Provider**: 通过 GitHub API 抓取指定 Release 各架构的资产。
 *   **HTTP Template Provider**: 通过 URL 模板（如北大镜像站）批量拼接下载链接。
-*   **双向映射**: 自动将上游架构名（如 `x86_64`）映射到 Pica 架构目录（`binary/amd64/x86_64`）。
+*   **落位规则**: 抓到的资产放入 `pkgs/<mgr>/<platform>/<arch>/`，其中 `<mgr>` 取自 build.json 的 `mgr`，需与 manifest 的 `targets` 一致。
 
 ### 2. `gen_repo_index.py` (索引聚合器)
 它是仓库的“索引师”，负责在每个 CI 周期完成后，扫描 `build_output` 下的所有包，合并生成单一的 `repo.json` 索引文件。
@@ -52,7 +52,30 @@
 
 ## 🚀 仓库结构规范
 
-1.  **src/opkg/<app>/manifest**: 软件包的身份信息元数据。
-2.  **src/opkg/<app>/cmd/ [install|update|remove]**: 软件包的生命周期脚本（目前设为 `exit 0` 占位）。
-3.  **ci/opkg/<app>/build.json**: 软件包在 CI 周期中的自动化规则。
-4.  **r/repo.json**: 最终通过 Worker 发布的二进制索引地图。
+1.  **src/<backend>/<app>/manifest**: 软件包的身份信息元数据，用 `targets` 声明构建目标。
+2.  **src/<backend>/<app>/scripts/ [install|update|remove]**: 软件包的生命周期脚本（可选）。
+3.  **src/<backend>/<app>/root/**: 按目标路径镜像安装的载荷（可选）。
+4.  **ci/<backend>/<app>/build.json**: 软件包在 CI 周期中的自动化规则，字段见 `schema/ci-job-v1.schema.json`。
+5.  **r/repo.json**: `pica -S` 拉取的索引（schema 2），产物同时位于 `r/packages/`。
+
+---
+
+## ✅ 本地校验
+
+改动配置后先跑校验，比等CI 报错快得多：
+
+```bash
+python3 .github/scripts/validate_repo.py
+```
+
+它会用 `schema/` 下的 JSON Schema 检查全部 `build.json` 与 `r/repo.json`；
+未安装 `jsonschema` 时自动降级为内置检查，仍能拦住会真正导致构建失败的项
+（`mgr` 非法、`include_dirs` 用了旧目录名、manifest 声明了 `pkgmgr`、
+`targets` 与 `mgr` 不一致等）。
+
+## 📐 两条铁律
+
+1. **manifest 里不要写 `pkgmgr`**，那是 `pica-pack` 写进产物的字段。
+   源manifest 里出现会被直接拒绝，请用 `targets`。
+2. **`build.json` 的 `mgr` 必须与 manifest 的 `targets` 一致**，
+   否则 `pica-pack` 报 `pkgs/<backend>/ present but <backend> is not in targets`。
