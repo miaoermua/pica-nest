@@ -44,10 +44,15 @@
     "pack": {
       "tool": "pica-pack",
       "format": "pkg.tar.gz"
-    }
+    },
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ]
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
+    "manifest_index": "src/none/manifest.json",
     "registry_db": "r/none/cattools/db.json"
   }
 }

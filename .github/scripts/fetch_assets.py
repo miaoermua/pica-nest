@@ -134,7 +134,12 @@ def fetch_github_assets(pkg_dir, build_config):
                 if not target_platform: target_platform = "all"
                 if not target_arch: target_arch = "all"
 
-                dest_dir = os.path.join(pkg_dir, "binary", target_platform, target_arch)
+                # Pica 包布局：`pkgs/<backend>/<platform>/<arch>/`。后端取自
+                # build.json 的 `mgr`，与 manifest 的 `targets` 必须一致，否则
+                # pica-pack 会以"pkgs/<backend>/ present but <backend> is not
+                # in targets"拒绝构建。
+                backend = build_config.get("mgr", "opkg")
+                dest_dir = os.path.join(pkg_dir, "pkgs", backend, target_platform, target_arch)
                 
                 # If we need to extract from zip, we download to a temporary location first
                 if inner_regex and a["name"].endswith(".zip"):
@@ -191,7 +196,8 @@ def fetch_http_template_assets(pkg_dir, build_config):
         for url_template in url_templates:
             url = url_template.replace("{arch}", arch).replace("{version}", version).replace("{platform}", platform)
             filename = url.split("/")[-1]
-            dest_dir = os.path.join(pkg_dir, "binary", platform, arch)
+            backend = build_config.get("mgr", "opkg")
+            dest_dir = os.path.join(pkg_dir, "pkgs", backend, platform, arch)
             dest_path = os.path.join(dest_dir, filename)
 
             if download_file(url, dest_path):

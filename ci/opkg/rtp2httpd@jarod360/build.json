@@ -63,10 +63,9 @@
       }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",

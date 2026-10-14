@@ -17,7 +17,7 @@ license = MIT
 visibility = open
 type = luci
 luci = js2
-pkgmgr = opkg
+targets = opkg
 source = pica
 
 # Install plan

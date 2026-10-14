@@ -5,7 +5,7 @@ pkgrel = 1
 os = openwrt
 platform = all
 arch = all
-pica = 0.2.0
+pica = 0.3.0
 pkgdesc = A powerful CatWrt toolbox written in BASH. Blog: https://www.miaoer.net/posts/blog/cattools
 url = https://github.com/miaoermua/cattools
 branch = main
@@ -14,11 +14,17 @@ license = GPL-2.0-only
 visibility = open
 packager = pica-pack-rs
 type = cli
-pkgmgr = none
+
+# 构建目标。产物 manifest 里的 pkgmgr 由 pica-pack 写入，源 manifest 不声明。
+# 依赖非空时不能用 pica 后端：pica 不做依赖求解，必须交给 opkg 安装。
+targets = opkg
+
 base = bash
 base = curl
 base = unzip
 base = jq
-cmd_install = cmd/install
-cmd_update = cmd/update
-cmd_remove = cmd/remove
+
+# 生命周期脚本。scripts/ 下的文件会按需保留到 /usr/lib/pica/scripts/cattools/。
+script_install = scripts/install
+script_update = scripts/update
+script_remove = scripts/remove
