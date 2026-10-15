@@ -7,6 +7,9 @@ import zipfile
 import tempfile
 import shutil
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from container_metadata import check_downloaded
+
 def fetch_json(url):
     print(f"Fetching {url}...")
     headers = {
@@ -235,6 +238,19 @@ def main():
 
     if not success:
         print("Fetch failed or no assets found.")
+        sys.exit(1)
+
+    # A container installs under the name in its control metadata, which is not
+    # the name it was matched by. Verify the manifest declares that name, so a
+    # rename upstream fails the build instead of shipping a broken package.
+    problems, skipped = check_downloaded(pkg_dir, build_config)
+    for path in skipped:
+        print(f"warning: could not read the package name of {path}; not verified")
+    if problems:
+        for problem in problems:
+            print(f"error: {problem}", file=sys.stderr)
+        print(f"\n{len(problems)} dependency mismatch(es)", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
