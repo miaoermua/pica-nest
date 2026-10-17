@@ -1,0 +1,71 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "luci-theme-argon",
+  "enabled": true,
+  "manifest": "src/apk/luci-theme-argon/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "jerrykuku/luci-theme-argon",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v?[0-9]+(?:\\.[0-9]+)*$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "theme",
+          "role": "app",
+          "regex": "^luci-theme-argon-[0-9].*\\.apk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        },
+        {
+          "name": "config",
+          "role": "app",
+          "regex": "^luci-app-argon-config-[0-9].*\\.apk$",
+          "required": false,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "2.4.7"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/luci-theme-argon/db.json",
+    "keep_release_history": 1
+  }
+}
