@@ -1,0 +1,51 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "pica",
+  "id": "tailscale",
+  "enabled": true,
+  "manifest": "src/pica/tailscale/manifest",
+  "source": {
+    "provider": "tarball",
+    "url_template": "https://pkgs.tailscale.com/stable/tailscale_1.104.1_{arch}.tgz",
+    "strip_components": 1,
+    "dest_subdir": "usr/sbin",
+    "include": [
+      "tailscaled",
+      "tailscale"
+    ]
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "1.104.1"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "amd64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "arm64"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/pica/tailscale/db.json",
+    "keep_release_history": 1
+  }
+}
