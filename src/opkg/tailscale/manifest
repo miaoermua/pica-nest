@@ -16,3 +16,4 @@ packager = pica-pack
 type = cli
 targets = opkg
 app = tailscale
+kmod = kmod-tun
