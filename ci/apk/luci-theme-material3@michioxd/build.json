@@ -1,0 +1,61 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "luci-theme-material3@michioxd",
+  "enabled": true,
+  "manifest": "src/apk/luci-theme-material3@michioxd/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "michioxd/luci-theme-material3",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v?[0-9]+(?:\\.[0-9]+)*$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "theme",
+          "role": "app",
+          "regex": "^luci-theme-material3-[0-9].*\\.apk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "0.1"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/luci-theme-material3@michioxd/db.json",
+    "keep_release_history": 1
+  }
+}
