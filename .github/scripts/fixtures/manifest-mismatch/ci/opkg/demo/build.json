@@ -1,23 +1,23 @@
 {
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
-  "id": "cattools",
+  "id": "demo",
   "enabled": true,
-  "manifest": "src/none/cattools/manifest",
+  "manifest": "src/apk/demo/manifest",
   "source": {
     "provider": "github",
-    "repo": "miaoermua/cattools",
+    "repo": "example/demo",
     "release": {
       "tag": {
         "mode": "regex",
-        "regex": "^v?[0-9.]+$"
+        "regex": "^v[0-9.]+$"
       },
       "allow_prerelease": false,
       "assets": [
         {
-          "name": "cattools-script",
+          "name": "demo",
           "role": "app",
-          "regex": "^cattools(-.*)?\\.zip$",
+          "regex": "^demo(-.*)?\\.ipk$",
           "required": true,
           "target": {
             "platform": "all",
@@ -30,7 +30,7 @@
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "1.1"
+      "fallback": "1.0"
     }
   },
   "build": {
@@ -51,6 +51,6 @@
     ]
   },
   "publish": {
-    "registry_db": "r/none/cattools/db.json"
+    "registry_db": "r/opkg/demo/db.json"
   }
 }

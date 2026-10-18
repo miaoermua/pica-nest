@@ -9,7 +9,7 @@
 1.  **manifest**: 核心元数据（版本、架构、依赖、安装说明）。
 2.  **scripts/**：生命周期脚本（`install` / `update` / `remove`），可选。
 3.  **root/**：按目标路径镜像安装的载荷，可选。
-4.  **pkgs/<backend>/**：交给后端安装的容器，由 CI 抓取上游后生成，源码区通常不放。
+4.  **pkgs/<backend>/**：交给后端安装的容器，由 CI 抓取上游后生成，源码区通常不放。`backend` 只能是 `opkg` 或 `apk`。
 
 ## 声明构建目标
 
@@ -25,6 +25,28 @@ targets = apk
 
 依赖（`app` / `base` / `kmod`）非空时不能用 `pica` 后端——它不做依赖求解，
 必须交给 `opkg` 或 `apk` 安装。
+
+## 依赖版本约束
+
+`app` / `base` / `kmod` 的每一项都可以带版本约束，语法与 `docs/standard.md` 一致
+（`name`、`name>=ver`、`name<=ver`、`name>ver`、`name<ver`、`name=ver`）：
+
+```ini
+base = curl>=7.0
+base = jq
+kmod = kmod-tun=0.1
+```
+
+约束只由 pica 在安装、升级时校验，**不会出现在 opkg/apk 的命令行上**——pica 永远只用裸包名
+请求后端。版本比较用 `pkgver_cmp`，`1.2-1` 高于 `1.2`。需要精确版本请把容器放进
+`pkgs/<backend>/`，由后端按路径安装。
+
+约束会直接作用于用户机器，写之前先确认下限：`>=` 写高了会让老设备在预检阶段被
+`E_VERSION_INCOMPATIBLE` 拒绝安装。
+
+`pica` 后端也不收容器：`pkgs/pica/` 会让构建直接失败。pica 不解析 `.ipk`/`.apk`，
+展开容器会把文件的所有权从后端数据库里抢走，也丢掉后端的依赖求解。需要容器里的文件时，
+在 CI 里把它抽成 `root/` 后再打包，或改回 `targets = opkg` / `targets = apk`。
 
 ## 🛠️ 如何添加新包？
 

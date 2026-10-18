@@ -20,7 +20,9 @@ type = cli
 targets = opkg
 
 base = bash
-base = curl
+# 带版本约束的依赖：约束由 pica 在本机校验，不会传给 opkg。
+# 7.0 是保守下限（OpenWrt 19.07 起 curl 均高于它），写高了会拒绝老设备安装。
+base = curl>=7.0
 base = unzip
 base = jq
 

@@ -39,6 +39,50 @@ def try_jsonschema(path, instance_path):
     ]
 
 
+def job_layout_errors(path):
+    """Check the job's place on disk against the backend it declares.
+
+    The schema sees the file, not the tree: a job filed under `ci/opkg/` whose
+    `mgr` is `apk` is valid field by field, yet the workflow walks `ci/<mgr>/`
+    and `fetch_assets.py` writes into `pkgs/<mgr>/`, so the directory name is
+    load-bearing. The same holds for the manifest: it is read from `manifest`,
+    which must be the copy under the job's own `src/<mgr>/<id>/`.
+
+    Returns None when the file is not valid JSON, so the caller reports that
+    once instead of failing inside the checks that follow.
+    """
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            job = json.load(handle)
+    except json.JSONDecodeError:
+        return None
+
+    parts = path.replace("\\", "/").split("/")
+    if len(parts) < 3:
+        return []
+    mgr_dir, job_dir = parts[-3], parts[-2]
+    mgr = job.get("mgr")
+    if mgr not in SUPPORTED_PKGMGRS:
+        # An unsupported mgr is already an error; comparing paths with it would
+        # only bury that error under a second one.
+        return []
+
+    errors = []
+    if mgr_dir != mgr:
+        errors.append(
+            f"{path}: lives in ci/{mgr_dir}/ but mgr is {mgr!r}; the directory name must be the backend"
+        )
+
+    manifest_path = job.get("manifest")
+    expected = f"src/{mgr}/{job_dir}/manifest"
+    if manifest_path and os.path.normpath(manifest_path) != expected:
+        errors.append(
+            f"{path}: manifest is {manifest_path!r}; a job in ci/{mgr_dir}/{job_dir}/ reads {expected!r}"
+        )
+
+    return errors
+
+
 def check_job_fallback(path):
     """The constraints a bad build.json turns into a failed or empty build."""
     errors = []
@@ -139,6 +183,14 @@ def main():
     used_schema = False
 
     for path in job_files:
+        # Runs in both modes: the schema cannot see where the file lives, and
+        # the fallback checks only the fields it happens to know about.
+        layout = job_layout_errors(path)
+        if layout is None:
+            errors.append(f"{path}: not valid JSON")
+            continue
+        errors.extend(layout)
+
         schema_path = os.path.join("schema", "ci-job-v1.schema.json")
         if os.path.isfile(schema_path):
             result = try_jsonschema(schema_path, path)

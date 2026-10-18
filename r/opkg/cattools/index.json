@@ -1,11 +1,11 @@
 {
   "pica_protocol": 1,
   "schema": "pica-package-index-v1",
-  "mgr": "none",
+  "mgr": "opkg",
   "id": "cattools",
   "pkgname": "cattools",
   "latest": "1.1-1",
-  "db": "r/none/cattools/db.json",
-  "manifest": "manifests/none/cattools/manifest",
+  "db": "r/opkg/cattools/db.json",
+  "manifest": "manifests/opkg/cattools/manifest",
   "updated_at": "2026-03-02T00:00:00Z"
 }

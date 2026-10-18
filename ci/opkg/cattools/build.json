@@ -1,0 +1,56 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "opkg",
+  "id": "cattools",
+  "enabled": true,
+  "manifest": "src/opkg/cattools/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "miaoermua/cattools",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v?[0-9.]+$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "cattools-script",
+          "role": "app",
+          "regex": "^cattools(-.*)?\\.zip$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "1.1"
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    },
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ]
+  },
+  "publish": {
+    "registry_db": "r/opkg/cattools/db.json"
+  }
+}

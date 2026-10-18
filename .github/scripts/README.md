@@ -73,9 +73,21 @@ python3 .github/scripts/validate_repo.py
 （`mgr` 非法、`include_dirs` 用了旧目录名、manifest 声明了 `pkgmgr`、
 `targets` 与 `mgr` 不一致等）。
 
-## 📐 两条铁律
+另有两条与文件位置有关的检查，**两种模式下都会跑**（Schema 看不到文件在哪个目录）：
+
+* `ci/<mgr>/<id>/build.json` 的目录名必须等于 `mgr`；
+* `manifest` 必须正好是 `src/<mgr>/<id>/manifest`。
+
+`.github/scripts/fixtures/` 下有两个故意写坏的样本，用来验证这两条确实会失败，
+用法见该目录的 `README.md`。
+
+## 📐 四条铁律
 
 1. **manifest 里不要写 `pkgmgr`**，那是 `pica-pack` 写进产物的字段。
    源manifest 里出现会被直接拒绝，请用 `targets`。
 2. **`build.json` 的 `mgr` 必须与 manifest 的 `targets` 一致**，
    否则 `pica-pack` 报 `pkgs/<backend>/ present but <backend> is not in targets`。
+3. **目录名就是后端名**：job 放在 `ci/<mgr>/`，包放在 `src/<mgr>/`。
+   目录与 `mgr` 不一致时，workflow 会按目录找 job，产物却按 `mgr` 落位。
+4. **`manifest` 指向本后端自己的那份**：`src/<mgr>/<id>/manifest`，
+   不要指向另一个后端的副本。
