@@ -1,0 +1,70 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "pica",
+  "id": "frps",
+  "enabled": true,
+  "manifest": "src/pica/frps/manifest",
+  "source": {
+    "provider": "tarball",
+    "url_template": "https://github.com/fatedier/frp/releases/download/v0.71.1/frp_0.71.1_linux_{arch}.tar.gz",
+    "strip_components": 1,
+    "dest_subdir": "usr/sbin",
+    "include": [
+      "frps",
+      "frps.toml"
+    ],
+    "arch_map": {
+      "x86_64": "amd64",
+      "aarch64_generic": "arm64",
+      "aarch64_cortex-a53": "arm64",
+      "aarch64_cortex-a72": "arm64",
+      "mipsel_24kc": "mipsle"
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "0.71.1"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/pica/frps/db.json",
+    "keep_release_history": 1
+  }
+}

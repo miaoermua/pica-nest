@@ -1,0 +1,34 @@
+pkgname = ua3f
+appname = ua3f
+pkgver = 3.7.0
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.0
+pkgdesc = A lightweight uclient-fetch alternative for OpenWrt, with a LuCI interface and support for nftables.
+url = https://github.com/SunBK201/UA3F
+branch = main
+protocol = luci
+luci_desc = UA3F LuCI interface
+license = GPL-3.0-only
+visibility = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+app = ua3f
+
+# Declared here as well as in the opkg package: the apk carries its own
+# dependency list, and pica checks a declaration before handing the container
+# to the system package manager. Leaving them out would let an install
+# succeed on a box that is missing what the proxy needs.
+base = luci-compat
+base = ipset
+base = iptables
+base = iptables-mod-tproxy
+base = iptables-mod-extra
+base = iptables-mod-ipopt
+base = iptables-mod-nfqueue
+base = iptables-mod-conntrack-extra
+kmod = kmod-nf-conntrack-netlink

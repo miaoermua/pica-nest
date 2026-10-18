@@ -61,6 +61,15 @@
           "type": "string",
           "description": "Optional subdirectory of root/ to unpack into. Empty, the usual case, puts the files straight into root/, which is what a `pica` artifact wants: root/ is deployed as it stands, so a per-architecture directory there would reach the device as a directory at the filesystem root."
         },
+        "rename": {
+          "type": "string",
+          "description": "Name to give a download that is not an archive. A release of one bare binary is a single file whose name is the upstream's (`cloudflared-linux-amd64`), and the device wants it where the manifest says (`cloudflared`); this is what puts it there. Read only by the tarball provider, and ignored for an archive, whose members keep the names they had inside it."
+        },
+        "arch_map": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Renames each matrix architecture for the URL, for a source that names them its own way — a Go project calls x86_64 `amd64` and aarch64 `arm64`. An architecture not listed here is substituted as it stands. Read only by the tarball provider."
+        },
         "release": {
           "type": "object",
           "properties": {

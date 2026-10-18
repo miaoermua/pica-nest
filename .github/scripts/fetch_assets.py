@@ -248,9 +248,14 @@ def extract_tarball(pkg_dir, build_config):
         matched = False
 
         for template in url_templates:
+            # A source may name architectures its own way. A Go project calls
+            # x86_64 `amd64` and aarch64 `arm64`, and a URL carrying that name
+            # cannot be built by substituting the manifest's arch into it —
+            # arch_map is how a package says which of the two it means.
+            mapped = (source.get("arch_map") or {}).get(arch, arch)
             url = (template
                    .replace("{platform}", str(platform))
-                   .replace("{arch}", str(arch))
+                   .replace("{arch}", str(mapped))
                    .replace("{version}", str(source.get("version", ""))))
             if "{arch}" not in template and len(matrix) > 1:
                 # One URL cannot answer for several architectures, and picking
@@ -274,7 +279,7 @@ def extract_tarball(pkg_dir, build_config):
                 ok = False
                 continue
 
-            if not unpack_into(dest, strip, includes):
+            if not unpack_into(dest, strip, includes, source.get("rename")):
                 ok = False
                 continue
             matched = True
@@ -288,17 +293,44 @@ def extract_tarball(pkg_dir, build_config):
     return ok
 
 
-def unpack_into(dest, strip, includes):
+def unpack_into(dest, strip, includes, rename=None):
     """
     Unpack a downloaded archive in place, leaving the files under `dest`.
 
-    The archive is removed afterwards: it is an input to the build, and under
-    `root/` it would otherwise be deployed to the device as a stray file.
+    A download that is not an archive is placed under `rename` instead, which
+    is what a release of one bare binary needs: the archive's members keep the
+    names they had inside it, but a single file's name is the upstream's, and
+    the device wants it where the manifest says.
+
+    The download is removed afterwards either way: it is an input to the
+    build, and under `root/` it would otherwise be deployed to the device as a
+    stray file.
     """
     archives = [n for n in os.listdir(dest) if n.endswith((".tar.gz", ".tgz", ".tar.xz"))]
     if not archives:
-        print(f"error: no archive to unpack in {dest}", file=sys.stderr)
-        return False
+        # Not every upstream ships an archive. A release of a single static
+        # binary is one file, and a package carrying it needs that file at a
+        # path of its own choosing — the download's name says what it is
+        # upstream, not where it belongs on the device.
+        stray = [n for n in os.listdir(dest) if os.path.isfile(os.path.join(dest, n))]
+        if not stray:
+            print(f"error: nothing to unpack in {dest}", file=sys.stderr)
+            return False
+        target = rename or stray[0]
+        destination = os.path.join(dest, target)
+        if os.path.abspath(destination) != os.path.abspath(os.path.join(dest, stray[0])):
+            os.rename(os.path.join(dest, stray[0]), destination)
+        # Whatever it was called upstream, the device gets the name the
+        # manifest promises, and an executable has to arrive executable.
+        os.chmod(destination, 0o755)
+        for name in os.listdir(dest):
+            if name != target:
+                try:
+                    os.remove(os.path.join(dest, name))
+                except OSError as err:
+                    print(f"warning: could not remove {name}: {err}", file=sys.stderr)
+        print(f"Placed {target}")
+        return True
 
     for name in archives:
         path = os.path.join(dest, name)
@@ -320,7 +352,28 @@ def unpack_into(dest, strip, includes):
                 if not members:
                     print(f"error: {name} contains none of {includes}", file=sys.stderr)
                     return False
-                tar.extractall(dest, members=members, filter="data")
+
+                if rename:
+                    # An archive of one file names it the way the release does,
+                    # which is not necessarily the name the device expects.
+                    # Giving it the manifest's name is the same thing the
+                    # non-archive path does, so a package can ask for it either
+                    # way without knowing which it got.
+                    if len(members) != 1:
+                        print(
+                            f"error: {name} holds {len(members)} files; rename applies to an "
+                            "archive of one, use include to narrow it first",
+                            file=sys.stderr,
+                        )
+                        return False
+                    members[0].name = rename
+                    tar.extractall(dest, members=members, filter="data")
+                    os.chmod(os.path.join(dest, rename), 0o755)
+                    # Fall through to the removal below: the archive is an
+                    # input either way, and leaving it under root/ would ship
+                    # it to the device.
+                else:
+                    tar.extractall(dest, members=members, filter="data")
         except (tarfile.TarError, OSError) as err:
             print(f"error: unpacking {name} failed: {err}", file=sys.stderr)
             return False
