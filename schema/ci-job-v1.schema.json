@@ -31,8 +31,8 @@
       "required": ["provider"],
       "properties": {
         "provider": {
-          "enum": ["github", "http_template"],
-          "description": "github reads a release; http_template expands url_template with {arch}/{version}/{platform}."
+          "enum": ["github", "http_template", "tarball"],
+          "description": "github reads a release; http_template expands url_template with {arch}/{version}/{platform}; tarball downloads an archive and unpacks it into the package's root/."
         },
         "repo": {
           "type": "string",
@@ -46,6 +46,20 @@
         "url_templates": {
           "type": "array",
           "items": { "type": "string" }
+        },
+        "strip_components": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How many leading path components to drop while unpacking a tarball. A release archive usually wraps everything in one directory tied to the release (`fastfetch-musl-amd64/usr/bin/...`); leaving that wrapper in would put the files at the wrong depth, so the binary would not land where the manifest says it is. Read only by the tarball provider."
+        },
+        "include": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Paths to keep when unpacking a tarball; a path under one of these prefixes is written and anything else in the archive is skipped. A full upstream archive also carries shell completions and man pages that a router has no use for. Read only by the tarball provider."
+        },
+        "dest_subdir": {
+          "type": "string",
+          "description": "Optional subdirectory of root/ to unpack into. Empty, the usual case, puts the files straight into root/, which is what a `pica` artifact wants: root/ is deployed as it stands, so a per-architecture directory there would reach the device as a directory at the filesystem root."
         },
         "release": {
           "type": "object",

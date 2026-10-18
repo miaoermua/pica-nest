@@ -3,6 +3,7 @@ import sys
 import json
 import re
 import urllib.request
+import tarfile
 import zipfile
 import tempfile
 import shutil
@@ -210,6 +211,129 @@ def fetch_http_template_assets(pkg_dir, build_config):
 
     return found_any
 
+def extract_tarball(pkg_dir, build_config):
+    """
+    Download a release archive and unpack it into the package's root/.
+
+    A source that ships no package of its own — a bare upstream tarball — has
+    nowhere else to go: the artifacts a `pica` backend package carries are
+    plain files under `root/`, and there is no container to put the download in.
+    Unpacking it here is what makes that shape buildable.
+
+    `strip_components` drops that many leading path components, because these
+    archives wrap everything in one directory whose name is tied to the release
+    (`fastfetch-musl-amd64/...`). Leaving it in place would put the binary one
+    level too deep, and the command would not be where the manifest says it is.
+
+    `include` narrows the unpack to the paths a device actually needs: a full
+    archive also carries shell completions and man pages, which are dead weight
+    on a router.
+    """
+    source = build_config["source"]
+    url_template = source.get("url_template")
+    url_templates = source.get("url_templates") or ([url_template] if url_template else [])
+    if not url_templates:
+        print("error: tarball provider needs url_template or url_templates", file=sys.stderr)
+        return False
+
+    strip = source.get("strip_components", 0)
+    includes = source.get("include") or []
+    matrix = build_config.get("build", {}).get("matrix", [{}])
+    root_dir = os.path.join(pkg_dir, "root")
+
+    ok = True
+    for entry in matrix:
+        platform = entry.get("platform", "all")
+        arch = entry.get("arch", "all")
+        matched = False
+
+        for template in url_templates:
+            url = (template
+                   .replace("{platform}", str(platform))
+                   .replace("{arch}", str(arch))
+                   .replace("{version}", str(source.get("version", ""))))
+            if "{arch}" not in template and len(matrix) > 1:
+                # One URL cannot answer for several architectures, and picking
+                # the first would ship one build labelled as the others.
+                continue
+
+            # A `pica` artifact has no per-architecture layout to put a build
+            # in: `root/` is deployed as it stands, so `<platform>/<arch>/`
+            # would reach the device as a directory at the root of the
+            # filesystem. The matrix selects which archive to fetch, not where
+            # it lands.
+            subdir = str(source.get("dest_subdir", "")).strip("/")
+            dest = os.path.join(root_dir, subdir) if subdir else root_dir
+
+            os.makedirs(dest, exist_ok=True)
+            archive = os.path.join(dest, os.path.basename(url.split("?")[0]))
+
+            print(f"Fetching {url}...")
+            if not download_file(url, archive):
+                print(f"warning: could not fetch {url}", file=sys.stderr)
+                ok = False
+                continue
+
+            if not unpack_into(dest, strip, includes):
+                ok = False
+                continue
+            matched = True
+            print(f"Unpacked into {os.path.relpath(dest, pkg_dir)}")
+            break
+
+        if not matched and ok:
+            print(f"error: no archive matched {platform}/{arch}", file=sys.stderr)
+            ok = False
+
+    return ok
+
+
+def unpack_into(dest, strip, includes):
+    """
+    Unpack a downloaded archive in place, leaving the files under `dest`.
+
+    The archive is removed afterwards: it is an input to the build, and under
+    `root/` it would otherwise be deployed to the device as a stray file.
+    """
+    archives = [n for n in os.listdir(dest) if n.endswith((".tar.gz", ".tgz", ".tar.xz"))]
+    if not archives:
+        print(f"error: no archive to unpack in {dest}", file=sys.stderr)
+        return False
+
+    for name in archives:
+        path = os.path.join(dest, name)
+        try:
+            with tarfile.open(path, "r:*") as tar:
+                members = []
+                for member in tar.getmembers():
+                    if not member.isfile():
+                        continue
+                    parts = member.name.split("/")
+                    if len(parts) <= strip:
+                        continue
+                    member.name = "/".join(parts[strip:])
+                    if includes and not any(
+                            member.name == pattern or member.name.startswith(pattern.rstrip("*"))
+                            for pattern in includes):
+                        continue
+                    members.append(member)
+                if not members:
+                    print(f"error: {name} contains none of {includes}", file=sys.stderr)
+                    return False
+                tar.extractall(dest, members=members, filter="data")
+        except (tarfile.TarError, OSError) as err:
+            print(f"error: unpacking {name} failed: {err}", file=sys.stderr)
+            return False
+
+        # The archive is this package's build input, not part of it: left under
+        # `root/` it would be deployed to the device as a stray megabyte.
+        try:
+            os.remove(path)
+        except OSError as err:
+            print(f"warning: could not remove {path}: {err}", file=sys.stderr)
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: fetch_assets.py <package_dir> [build_json_path]")
@@ -232,6 +356,8 @@ def main():
         success = fetch_github_assets(pkg_dir, build_config)
     elif provider == "http_template":
         success = fetch_http_template_assets(pkg_dir, build_config)
+    elif provider == "tarball":
+        success = extract_tarball(pkg_dir, build_config)
     else:
         print(f"Unknown provider: {provider}")
         sys.exit(1)

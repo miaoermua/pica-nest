@@ -107,9 +107,12 @@ def check_job_fallback(path):
         bad(f"manifest not found: {manifest_path}")
 
     source = job.get("source") or {}
-    if source.get("provider") not in ("github", "http_template"):
-        bad(f"source.provider must be github or http_template, got {source.get('provider')!r}")
-    if source.get("provider") == "github":
+    provider = source.get("provider")
+    if provider not in ("github", "http_template", "tarball"):
+        bad(f"source.provider must be github, http_template or tarball, got {provider!r}")
+    if provider == "tarball" and not (source.get("url_template") or source.get("url_templates")):
+        bad("source.url_template is required for the tarball provider")
+    if provider == "github":
         if not source.get("repo"):
             bad("source.repo is required for the github provider")
         release = source.get("release") or {}

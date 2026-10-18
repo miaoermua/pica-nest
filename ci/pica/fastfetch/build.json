@@ -1,0 +1,46 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "pica",
+  "id": "fastfetch",
+  "enabled": true,
+  "manifest": "src/pica/fastfetch/manifest",
+  "source": {
+    "provider": "tarball",
+    "url_template": "https://github.com/fastfetch-cli/fastfetch/releases/download/2.70.0/fastfetch-musl-{arch}.tar.gz",
+    "strip_components": 1,
+    "include": [
+      "usr/bin/",
+      "usr/share/licenses/"
+    ]
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "2.70.0"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "amd64"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/pica/fastfetch/db.json",
+    "keep_release_history": 1
+  }
+}

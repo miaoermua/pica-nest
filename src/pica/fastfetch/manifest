@@ -1,0 +1,17 @@
+pkgname = fastfetch
+appname = fastfetch
+pkgver = 2.70.0
+pkgrel = 1
+os = openwrt
+platform = amd64
+arch = x86_64
+pica = 0.3.0
+pkgdesc = A fast hardware information tool written in C, an alternative to neofetch
+url = https://github.com/fastfetch-cli/fastfetch
+branch = dev
+protocol = cli
+license = MIT
+visibility = open
+packager = pica-pack
+type = cli
+targets = pica
