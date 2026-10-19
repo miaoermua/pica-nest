@@ -1,0 +1,61 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "luci-app-docker",
+  "enabled": true,
+  "manifest": "src/apk/luci-app-docker/manifest",
+  "source": {
+    "provider": "http_template",
+    "url_templates": [
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-app-docker-1-r12.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-compat-26.236.50544~cb5d434.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/docker-29.6.1-r1.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/dockerd-29.6.1-r1.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/base/e2fsprogs-1.47.3-r1.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/base/fdisk-2.41.5-r1.apk"
+    ]
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "1"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 12
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/luci-app-docker/db.json",
+    "keep_release_history": 1
+  }
+}
