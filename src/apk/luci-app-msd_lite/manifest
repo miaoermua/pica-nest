@@ -1,0 +1,27 @@
+pkgname = luci-app-msd_lite
+appname = msd_lite
+pkgver = 2025.05.02
+pkgrel = 3
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.0
+pkgdesc = LuCI interface for msd_lite, which streams IPTV and multicast groups over HTTP to the network.
+url = https://github.com/rozhuk-im/msd_lite
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-msd_lite
+branch = master
+protocol = luci
+luci_desc = LuCI support for Multi stream daemon lite
+license = BSD-2-Clause
+visibility = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Its control declares +msd_lite (the recipe's LUCI_DEPENDS), so the streaming
+# daemon rides along. It is a separate container rather than a merged tree, so
+# apk still records what it installed and either can be updated on its own.
+app = luci-app-msd_lite
+app = msd_lite
+base = luci-base
