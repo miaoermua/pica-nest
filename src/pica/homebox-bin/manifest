@@ -1,4 +1,4 @@
-pkgname = homebox
+pkgname = homebox-bin
 appname = homebox
 pkgver = 0.1.3
 pkgrel = 1

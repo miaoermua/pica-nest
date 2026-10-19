@@ -1,9 +1,9 @@
 {
   "schema": "pica-ci-job-v1",
   "mgr": "pica",
-  "id": "cloudflared",
+  "id": "cloudflared-bin",
   "enabled": true,
-  "manifest": "src/pica/cloudflared/manifest",
+  "manifest": "src/pica/cloudflared-bin/manifest",
   "source": {
     "provider": "tarball",
     "url_template": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.1/cloudflared-linux-{arch}",
@@ -55,7 +55,7 @@
     }
   },
   "publish": {
-    "registry_db": "r/pica/cloudflared/db.json",
+    "registry_db": "r/pica/cloudflared-bin/db.json",
     "keep_release_history": 1
   }
 }

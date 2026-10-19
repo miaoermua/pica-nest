@@ -1,4 +1,4 @@
-pkgname = cloudflared
+pkgname = cloudflared-bin
 appname = cloudflared
 pkgver = 2026.10.1
 pkgrel = 1
