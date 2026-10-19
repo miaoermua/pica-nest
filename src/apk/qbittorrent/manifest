@@ -1,4 +1,4 @@
-pkgname = luci-app-qbittorrent
+pkgname = qbittorrent
 appname = qbittorrent
 pkgver = 5.2.3
 pkgrel = 2

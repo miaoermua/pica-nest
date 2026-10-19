@@ -1,9 +1,9 @@
 {
   "schema": "pica-ci-job-v1",
   "mgr": "apk",
-  "id": "luci-app-qbittorrent",
+  "id": "qbittorrent",
   "enabled": true,
-  "manifest": "src/apk/luci-app-qbittorrent/manifest",
+  "manifest": "src/apk/qbittorrent/manifest",
   "source": {
     "provider": "http_template",
     "url_templates": [
@@ -56,7 +56,7 @@
     }
   },
   "publish": {
-    "registry_db": "r/apk/luci-app-qbittorrent/db.json",
+    "registry_db": "r/apk/qbittorrent/db.json",
     "keep_release_history": 1
   }
 }
