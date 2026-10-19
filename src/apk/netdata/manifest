@@ -1,4 +1,4 @@
-pkgname = luci-app-netdata
+pkgname = netdata
 appname = netdata
 pkgver = 1.38.1
 pkgrel = 3

@@ -1,4 +1,4 @@
-pkgname = tailscale
+pkgname = tailscale-bin
 appname = tailscale
 pkgver = 1.104.1
 pkgrel = 1

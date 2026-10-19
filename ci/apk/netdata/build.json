@@ -1,24 +1,24 @@
 {
   "schema": "pica-ci-job-v1",
   "mgr": "apk",
-  "id": "luci-app-cloudflared",
+  "id": "netdata",
   "enabled": true,
-  "manifest": "src/apk/luci-app-cloudflared/manifest",
+  "manifest": "src/apk/netdata/manifest",
   "source": {
     "provider": "http_template",
     "url_templates": [
-      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-app-cloudflared-1.2-r1.apk",
-      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/cloudflared-2026.6.1-r1.apk"
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-app-netdata-26.236.50544~cb5d434.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/netdata-1.38.1-r3.apk"
     ]
   },
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "1.2"
+      "fallback": "1.38.1"
     },
     "pkgrel": {
       "from": "manifest",
-      "fallback": 1
+      "fallback": 3
     }
   },
   "build": {
@@ -55,7 +55,7 @@
     }
   },
   "publish": {
-    "registry_db": "r/apk/luci-app-cloudflared/db.json",
+    "registry_db": "r/apk/netdata/db.json",
     "keep_release_history": 1
   }
 }

@@ -1,24 +1,34 @@
 {
   "schema": "pica-ci-job-v1",
-  "mgr": "apk",
-  "id": "luci-app-msd_lite",
+  "mgr": "pica",
+  "id": "tailscale-bin",
   "enabled": true,
-  "manifest": "src/apk/luci-app-msd_lite/manifest",
+  "manifest": "src/pica/tailscale-bin/manifest",
   "source": {
-    "provider": "http_template",
-    "url_templates": [
-      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-app-msd_lite-26.236.50544~cb5d434.apk",
-      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/msd_lite-2025.05.02~79a6c62c-r3.apk"
-    ]
+    "provider": "tarball",
+    "url_template": "https://pkgs.tailscale.com/stable/tailscale_1.104.1_{arch}.tgz",
+    "strip_components": 1,
+    "dest_subdir": "usr/sbin",
+    "include": [
+      "tailscaled",
+      "tailscale"
+    ],
+    "arch_map": {
+      "x86_64": "amd64",
+      "aarch64_generic": "arm64",
+      "aarch64_cortex-a53": "arm64",
+      "aarch64_cortex-a72": "arm64",
+      "mipsel_24kc": "mipsle"
+    }
   },
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "2025.05.02"
+      "fallback": "1.104.1"
     },
     "pkgrel": {
       "from": "manifest",
-      "fallback": 3
+      "fallback": 1
     }
   },
   "build": {
@@ -46,8 +56,7 @@
     ],
     "include_dirs": [
       "scripts",
-      "root",
-      "pkgs"
+      "root"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -55,7 +64,7 @@
     }
   },
   "publish": {
-    "registry_db": "r/apk/luci-app-msd_lite/db.json",
+    "registry_db": "r/pica/tailscale-bin/db.json",
     "keep_release_history": 1
   }
 }

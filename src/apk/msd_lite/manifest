@@ -1,4 +1,4 @@
-pkgname = luci-app-msd_lite
+pkgname = msd_lite
 appname = msd_lite
 pkgver = 2025.05.02
 pkgrel = 3
