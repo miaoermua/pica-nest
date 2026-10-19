@@ -6,8 +6,11 @@
   "manifest": "src/opkg/bind-dig/manifest",
   "source": {
     "provider": "http_template",
-    "url_template": "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/bind-dig_{version}_{arch}.ipk",
-    "version": "9.20.18-r1"
+    "version": "9.20.18-r1",
+    "url_templates": [
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/bind-dig_9.20.26-r1_{arch}.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/bind-dig_9.20.29-r1_aarch64_cortex-a53.ipk"
+    ]
   },
   "versioning": {
     "pkgver": {

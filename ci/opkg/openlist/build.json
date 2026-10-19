@@ -7,9 +7,10 @@
   "source": {
     "provider": "http_template",
     "url_templates": [
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-app-openlist_25.306.51720~a833d72_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-i18n-openlist-zh-cn_26.030.72349~cfd9f87_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/openlist_4.1.5-r1_{arch}.ipk"
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/openlist_4.1.10-r1_{arch}.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-app-openlist_26.126.28706~6ac4a03_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-i18n-openlist-zh-cn_26.176.74839~949c5b0_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-i18n-openlist-zh-cn_26.228.65014~8e278ba_aarch64_cortex-a53.ipk"
     ],
     "version": "4.1.5-r1"
   },

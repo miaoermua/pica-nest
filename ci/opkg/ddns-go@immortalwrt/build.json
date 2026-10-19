@@ -7,9 +7,9 @@
   "source": {
     "provider": "http_template",
     "url_templates": [
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-app-ddns-go_25.306.51720~a833d72_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-i18n-ddns-go-zh-cn_25.306.51720~a833d72_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/ddns-go_6.11.2-r1_{arch}.ipk"
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-app-ddns-go_26.126.28706~6ac4a03_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-i18n-ddns-go-zh-cn_26.126.28706~6ac4a03_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/ddns-go_6.11.2-r1_{arch}.ipk"
     ],
     "version": "6.11.2-r1"
   },
