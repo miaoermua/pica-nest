@@ -7,9 +7,10 @@ on:
       - 'ci/**'
       - 'schema/**'
       - '.github/scripts/**'
+      - '.github/workflows/**'
   schedule:
     # Cron: every day at 04:17 UTC. Upstream releases are picked up without a push.
-    - cron: '17 4* * *'
+    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
       force_rebuild_all:
@@ -28,16 +29,36 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2 # needed for tj-actions/changed-files
+          # The change range is computed from event.before, which may be several
+          # commits back; a shallow clone cannot resolve it.
+          fetch-depth: 0
 
-      - name: Get Changed Files in src/
-        id: changed-files
-        uses: tj-actions/changed-files@v44
-        with:
-          files: src/**
-          dir_names: true
-          dir_names_max_depth: 3 # e.g. src/mgr/hello
-          
+      - name: Detect changed packages
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+          FORCE_REBUILD: ${{ github.event.inputs.force_rebuild_all }}
+        run: |
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            python3 .github/scripts/changed_packages.py \
+              --force-rebuild-all --github-output "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ "$FORCE_REBUILD" = "true" ]; then
+              python3 .github/scripts/changed_packages.py \
+                --force-rebuild-all --github-output "$GITHUB_OUTPUT"
+            else
+              # A manual run has no reliable diff range; validate globally
+              # instead of silently rebuilding nothing.
+              python3 .github/scripts/changed_packages.py \
+                --full-validation-only --github-output "$GITHUB_OUTPUT"
+            fi
+          else
+            python3 .github/scripts/changed_packages.py \
+              --base "$BEFORE_SHA" --head "$HEAD_SHA" \
+              --github-output "$GITHUB_OUTPUT"
+          fi
       - name: Checkout pica source
         uses: actions/checkout@v4
         with:
@@ -59,39 +80,49 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install jsonschema
 
+      - name: Test change detection mapping
+        run: python3 .github/scripts/test_changed_packages.py
+
       - name: Validate repository configuration
         run: |
           # Catches bad mgr/targets/include_dirs before a build wastes time.
           python3 .github/scripts/validate_repo.py
+
+      - name: Full validation (shared CI inputs changed)
+        if: steps.detect.outputs.full_validation == 'true'
+        run: |
+          # A schema, workflow or script change invalidates every job's
+          # assumptions; validate them all without repackaging everything.
+          python3 -m py_compile .github/scripts/*.py
+          python3 .github/scripts/validate_repo.py --check-pairs
 
       - name: Build Changed Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p build_output
+          DIRS_TO_BUILD="${{ steps.detect.outputs.packages }}"
 
-          if [ "${{ github.event_name }}" == "schedule" ] || [ "${{ github.event.inputs.force_rebuild_all }}" == "true" ]; then
-            echo "Rebuilding all packages..."
-            DIRS_TO_BUILD=$(find src -type f -name manifest | sed 's|/manifest||')
-          else
-            DIRS_TO_BUILD="${{ steps.changed-files.outputs.all_changed_files }}"
-            if [ -z "$DIRS_TO_BUILD" ]; then
-              echo "No files changed in src/. Skipping build."
-            fi
+          if [ -z "$DIRS_TO_BUILD" ]; then
+            echo "No packages selected for rebuild."
           fi
 
           for dir in $DIRS_TO_BUILD; do
-            if [ ! -f "$dir/manifest" ]; then
-              continue
-            fi
-            # src/<mgr>/<id>/ -> build.json sits at ci/<mgr>/<id>/build.json
+            PKG_MGR=$(basename "$(dirname "$dir")")
             PKG_ID=$(basename "$dir")
-            BUILD_JSON="ci/$(basename "$(dirname "$dir")")/$PKG_ID/build.json"
+            BUILD_JSON="ci/$PKG_MGR/$PKG_ID/build.json"
 
-            if [ -f "$BUILD_JSON" ]; then
-              echo "Fetching assets for $PKG_ID using $BUILD_JSON..."
-              python3 .github/scripts/fetch_assets.py "$dir" "$BUILD_JSON"
+            if [ ! -f "$dir/manifest" ]; then
+              echo "error: selected package $dir has no manifest" >&2
+              exit 1
             fi
+            if [ ! -f "$BUILD_JSON" ]; then
+              echo "error: selected package $dir has no $BUILD_JSON" >&2
+              exit 1
+            fi
+
+            echo "Fetching assets for $PKG_ID using $BUILD_JSON..."
+            python3 .github/scripts/fetch_assets.py "$dir" "$BUILD_JSON"
 
             echo "Building package in $dir..."
             # pica-pack reads `targets` from the manifest; the directory decides
@@ -121,7 +152,7 @@ jobs:
 
       - name: Create Snapshot Release
         uses: softprops/action-gh-release@v2
-        if: success() && hashFiles('r/packages/*.pkg.tar.gz') != ''
+        if: success() && steps.detect.outputs.packages != '' && hashFiles('r/packages/*.pkg.tar.gz') != ''
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
@@ -129,7 +160,7 @@ jobs:
 
       - name: Update Rolling Latest Release
         uses: softprops/action-gh-release@v2
-        if: success() && hashFiles('r/packages/*.pkg.tar.gz') != ''
+        if: success() && steps.detect.outputs.packages != '' && hashFiles('r/packages/*.pkg.tar.gz') != ''
         with:
           tag_name: latest
           name: Latest Packages

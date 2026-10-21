@@ -14,6 +14,12 @@
 ### 2. `gen_repo_index.py` (索引聚合器)
 它是仓库的“索引师”，负责在每个 CI 周期完成后，扫描 `build_output` 下的所有包，合并生成单一的 `repo.json` 索引文件。
 
+### 3. `changed_packages.py` (变更映射器)
+它回答“这次提交要重建哪些包”：`src/<mgr>/<pkg>/**` 与 `ci/<mgr>/<pkg>/build.json`
+（含新增、删除、重命名两侧）都映射到对应包；`schema/`、`.github/scripts/*.py`、
+`.github/workflows/**` 只触发全量**校验**，不会重新打包全部包；无法解析 diff 基准时
+显式失败或安全全量。映射逻辑的测试：`python3 .github/scripts/test_changed_packages.py`。
+
 ---
 
 ## 📂 build.json 配置指南

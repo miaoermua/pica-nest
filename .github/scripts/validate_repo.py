@@ -6,7 +6,7 @@ the constraints that actually break builds, so the script is useful both in CI
 (where the dependency is installed) and in a bare shell.
 
 Usage:
-    validate_repo.py [--jobs ci/*/*/build.json] [--index r/repo.json]
+    validate_repo.py [--jobs ci/*/*/build.json] [--index r/repo.json] [--check-pairs]
 """
 import argparse
 import glob
@@ -170,11 +170,45 @@ def check_index_fallback(path):
     return errors
 
 
+def pair_errors():
+    """Every source package has its job, and every job has its source.
+
+    File-by-file validation cannot see a deleted half: `src/<mgr>/<pkg>/` with
+    no `ci/<mgr>/<pkg>/build.json` (or the reverse) leaves nothing invalid to
+    read. The workflow assumes the pair, so a full validation checks it.
+    """
+    errors = []
+    jobs = set(glob.glob("ci/*/*/build.json"))
+
+    for manifest in sorted(glob.glob("src/*/*/manifest")):
+        parts = manifest.replace("\\", "/").split("/")
+        if len(parts) != 4:
+            continue
+        job = f"ci/{parts[1]}/{parts[2]}/build.json"
+        if job not in jobs:
+            errors.append(f"{manifest}: has no matching {job}")
+
+    for job in sorted(jobs):
+        parts = job.replace("\\", "/").split("/")
+        if len(parts) != 4:
+            continue
+        manifest = f"src/{parts[1]}/{parts[2]}/manifest"
+        if not os.path.isfile(manifest):
+            errors.append(f"{job}: has no matching {manifest}")
+
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jobs", nargs="*", default=None, help="build.json files to check")
     parser.add_argument("--index", default="r/repo.json")
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument(
+        "--check-pairs",
+        action="store_true",
+        help="also require every src package to have a ci job, and the reverse",
+    )
     args = parser.parse_args()
 
     job_files = args.jobs if args.jobs else sorted(glob.glob("ci/*/*/build.json"))
@@ -202,6 +236,9 @@ def main():
                 errors.extend(result)
                 continue
         errors.extend(check_job_fallback(path))
+
+    if args.check_pairs:
+        errors.extend(pair_errors())
 
     if os.path.isfile(args.index):
         schema_path = os.path.join("schema", "repo-index-v2.schema.json")
