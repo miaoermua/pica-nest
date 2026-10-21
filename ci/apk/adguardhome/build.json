@@ -1,0 +1,61 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "adguardhome",
+  "enabled": true,
+  "manifest": "src/apk/adguardhome/manifest",
+  "source": {
+    "provider": "http_template",
+    "url_templates": [
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/luci/luci-app-adguardhome-26.236.50544~cb5d434.apk",
+      "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}/packages/adguardhome-0.107.76-r1.apk"
+    ]
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "0.107.76"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/adguardhome/db.json",
+    "keep_release_history": 1
+  }
+}

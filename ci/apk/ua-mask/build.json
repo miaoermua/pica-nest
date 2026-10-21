@@ -1,0 +1,73 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "ua-mask",
+  "enabled": true,
+  "manifest": "src/apk/ua-mask/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "Zesuy/UA-Mask",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v?[0-9]+(?:\\.[0-9]+)*$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "ua-mask",
+          "role": "app",
+          "regex": "^UAmask-[0-9].*-r[0-9]+_.*\\.apk$",
+          "required": true,
+          "target": {
+            "platform": "amd64",
+            "arch": "x86_64"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "0.4.3"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/ua-mask/db.json",
+    "keep_release_history": 1
+  }
+}

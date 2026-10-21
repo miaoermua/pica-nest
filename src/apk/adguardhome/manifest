@@ -1,0 +1,29 @@
+pkgname = adguardhome
+appname = adguardhome
+pkgver = 0.107.76
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = Free and powerful network-wide ads and trackers blocking DNS server, with a LuCI interface.
+url = https://github.com/AdguardTeam/AdGuardHome
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-adguardhome
+branch = master
+protocol = luci
+luci_desc = LuCI support for AdGuard Home
+license = GPL-2.0-only
+visibility = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Both containers ride along, and they stay separate files rather than one
+# merged tree: the LuCI package's own control declares
+# `adguardhome (>=0.107.73-r3)`, so shipping the interface without the daemon
+# produces a menu entry that opens onto nothing. apk still records each of
+# them separately, so either can be updated on its own.
+app = adguardhome
+app = luci-app-adguardhome
+base = luci-base

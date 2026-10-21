@@ -12,7 +12,9 @@
 **功能描述：** 这里是整个源仓库的唯一事实来源 (Single Source of Truth)。所有软件包的元数据、编译和挂载脚本都在这里被定义。
 - 采用 `<分类>/<包名>` 的双层嵌套结构（例如 `src/opkg/adguardhome/`）。
 - **`manifest`**：定义包的基础信息（版本、架构、引用关系）。
-- **`cmd/`**：包含包被 Pica 客户端加载时的生命周期脚本及钩子（如 `install.sh`）。
+- **`scripts/`**：生命周期脚本（`install` / `update` / `remove`），由 Pica 在装卸时执行，并按需保留到 `/usr/lib/pica/scripts/<pkgname>/`。
+- **`root/`**：按目标路径镜像安装的载荷。`root/etc/init.d/hello` 会装到 `/etc/init.d/hello`，不依赖任何包管理器。
+- **`pkgs/<backend>/<platform>/<arch>/`**：交给后端安装的 `.ipk` / `.apk` 容器，由 `fetch_assets.py` 从上游抓取后落在这里。
 
 ### `ci/`：自动化构建控制区 (面向 DevOps)
 **功能描述：** 存放用于生成发布产物、聚合索引的各类工具脚本。
@@ -62,6 +64,6 @@ Pica 架构中有一份专门编写的 `worker.js`，供部署在 Cloudflare 端
 1. **Fork 本仓库**：将当前软件源仓库 Fork 到你自己的 GitHub 账号下。
 2. **规范目录**：在 `src/<类别>/` (例如 `src/opkg/` 或 `src/mgr/`) 下新建你的应用包文件夹，例如 `my_app`。
 3. **编写数据清单**：在 `src/<类别>/my_app/` 内，必须创建 `manifest` 声明文件，包含包的基础信息。
-4. **添加脚本 (可选)**：根据需要提供生命周期脚本，例如 `cmd/install.sh`。
+4. **添加脚本 (可选)**：根据需要提供生命周期脚本，例如 `scripts/install`。
 5. **提交 Pull Request**：将你添加的包推送到你的 Fork 分支，并向官方仓库提交 PR。
    *一旦你的 PR 被管理员合并入主分支，这套系统里的 GitHub Actions CI 便会自动接管。它会提取你新加入的应用，为其生成 Release 二进制包，更新 `r/repo.json` 的中心索引。短短几秒钟后，全网客户端即可安装你的新应用！*

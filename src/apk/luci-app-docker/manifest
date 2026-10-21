@@ -1,0 +1,33 @@
+pkgname = luci-app-docker
+appname = luci-app-docker
+pkgver = 1
+pkgrel = 12
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = LuCI interface for Docker CE, the older Lua-based interface that dockerman replaces.
+url = https://github.com/latelee/dockerman
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-docker
+branch = master
+protocol = luci
+luci_desc = Luci for Docker-CE
+license = Apache-2.0
+visibility = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+
+# Its control asks for luci-compat, docker, dockerd, e2fsprogs and fdisk.
+# e2fsprogs and fdisk are here because the interface formats the data directory
+# it hands the daemon, and luci-compat because this one is the Lua interface —
+# it needs the compatibility layer that dockerman, written against the current
+# LuCI, does not.
+app = luci-app-docker
+app = luci-compat
+app = docker
+app = dockerd
+app = e2fsprogs
+app = fdisk
+base = luci-base

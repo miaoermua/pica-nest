@@ -13,6 +13,14 @@
       "db": "r/opkg/adguardhome/db.json"
     },
     {
+      "id": "cattools",
+      "pkgname": "cattools",
+      "provider": "miaoermua",
+      "description": "cattools script toolkit installed via lifecycle scripts",
+      "homepage": "https://github.com/miaoermua/cattools",
+      "db": "r/opkg/cattools/db.json"
+    },
+    {
       "id": "leigod-acc",
       "pkgname": "leigod-acc",
       "provider": "miaoermua",

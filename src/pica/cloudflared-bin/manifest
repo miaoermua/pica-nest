@@ -1,0 +1,17 @@
+pkgname = cloudflared-bin
+appname = cloudflared
+pkgver = 2026.10.1
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = Cloudflare Tunnel client, for exposing a local service to the internet without opening a port.
+url = https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+branch = master
+protocol = cli
+license = Apache-2.0
+visibility = open
+packager = pica-pack
+type = cli
+targets = pica

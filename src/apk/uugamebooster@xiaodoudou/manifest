@@ -1,0 +1,50 @@
+pkgname = uugamebooster@xiaodoudou
+appname = luci-app-uugamebooster
+pkgver = 2.0
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = LuCI interface for NetEase UU Game Booster, for configuring the acceleration routes it applies to a device.
+url = https://github.com/xiaodoudou/luci-app-uugamebooster
+luci_url = https://github.com/xiaodoudou/luci-app-uugamebooster
+branch = master
+protocol = luci
+luci_desc = LuCI support for NetEase UU Game Booster
+license = Apache-2.0
+visibility = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+
+# A fork: the upstream name is what gets installed, this source's own name
+# carries the maintainer so the two do not collide in one index.
+app = luci-app-uugamebooster
+
+# Everything the Makefile's LUCI_DEPENDS asks for is declared and none of it is
+# carried, which is the opposite of most packages here. That is deliberate:
+#
+#   kmod-tun, kmod-ipt-nat, libstdcpp6   kernel modules and the toolchain's
+#       runtime library. They are built against a kernel version, so a copy
+#       pinned to one would be wrong on every other firmware; they travel with
+#       the image and must be resolved from there.
+#   luci-compat     already its own package in this source. Duplicating it here
+#       would install the same thing twice.
+#   ip-full         iproute2, for the ip rule and route commands its OpenClash
+#       split issues. ip-tiny satisfies this too; ip-full is what the feed ships
+#       most often and carries the bridge tooling beside it.
+#   nftables-json   the split and boost detection read nft directly.
+#   ca-bundle, unshare   TLS roots, and the mount namespace the device list uses.
+#
+# Declaring rather than bundling is safe here because every one of these is in
+# the base image or the feeds already; a device missing one is a device whose
+# firmware predates this package, and apk will say so rather than install a
+# mismatched kernel module.
+base = luci-base
+base = luci-compat
+base = ip-full
+base = nftables-json
+base = ca-bundle
+base = unshare

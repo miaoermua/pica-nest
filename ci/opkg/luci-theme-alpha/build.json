@@ -1,0 +1,71 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "opkg",
+  "id": "luci-theme-alpha",
+  "enabled": true,
+  "manifest": "src/opkg/luci-theme-alpha/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "derisamedia/luci-theme-alpha",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:-[0-9a-z.]+)?$"
+      },
+      "allow_prerelease": true,
+      "assets": [
+        {
+          "name": "theme",
+          "role": "app",
+          "regex": "^luci-theme-alpha_[0-9].*_all\\.ipk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        },
+        {
+          "name": "config",
+          "role": "app",
+          "regex": "^luci-app-alpha-config_.*_all\\.ipk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "3.9.7_beta2"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 10
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/opkg/luci-theme-alpha/db.json",
+    "keep_release_history": 1
+  }
+}

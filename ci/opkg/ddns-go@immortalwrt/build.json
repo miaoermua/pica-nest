@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "ddns-go@immortalwrt",
@@ -8,9 +7,9 @@
   "source": {
     "provider": "http_template",
     "url_templates": [
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-app-ddns-go_25.306.51720~a833d72_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/luci/luci-i18n-ddns-go-zh-cn_25.306.51720~a833d72_all.ipk",
-      "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/ddns-go_6.11.2-r1_{arch}.ipk"
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-app-ddns-go_26.126.28706~6ac4a03_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/luci/luci-i18n-ddns-go-zh-cn_26.126.28706~6ac4a03_all.ipk",
+      "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/ddns-go_6.11.2-r1_{arch}.ipk"
     ],
     "version": "6.11.2-r1"
   },
@@ -22,17 +21,31 @@
   },
   "build": {
     "matrix": [
-      { "platform": "amd64", "arch": "x86_64" },
-      { "platform": "arm64", "arch": "aarch64_generic" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a53" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a72" },
-      { "platform": "mipsel", "arch": "mipsel_24kc" }
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -40,7 +53,6 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/ddns-go@immortalwrt/db.json"
   }
 }

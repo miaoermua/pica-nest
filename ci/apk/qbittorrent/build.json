@@ -1,0 +1,62 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "qbittorrent",
+  "enabled": true,
+  "manifest": "src/apk/qbittorrent/manifest",
+  "source": {
+    "provider": "http_template",
+    "url_templates": [
+      "https://downloads.immortalwrt.org/snapshots/packages/{arch}/luci/luci-app-qbittorrent-26.129.12611~06572bb.apk",
+      "https://downloads.immortalwrt.org/snapshots/packages/{arch}/packages/qbittorrent-5.2.3-r2.apk",
+      "https://downloads.immortalwrt.org/snapshots/packages/x86_64/luci/luci-i18n-qbittorrent-zh-cn-25.257.46572~f0567b4.apk"
+    ]
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "5.2.3"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 2
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/apk/qbittorrent/db.json",
+    "keep_release_history": 1
+  }
+}

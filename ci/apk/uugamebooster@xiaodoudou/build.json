@@ -1,0 +1,37 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "apk",
+  "id": "uugamebooster@xiaodoudou",
+  "enabled": true,
+  "manifest": "src/apk/uugamebooster@xiaodoudou/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "xiaodoudou/luci-app-uugamebooster",
+    "release": {
+      "tag": { "mode": "exact", "value": "v2.0" },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "app",
+          "role": "app",
+          "regex": "^luci-app-uugamebooster-[0-9].*\\.apk$",
+          "required": true,
+          "target": { "platform": "all", "arch": "all" }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": { "from": "manifest", "fallback": "2.0" },
+    "pkgrel": { "from": "manifest", "fallback": 1 }
+  },
+  "build": {
+    "matrix": [ { "platform": "all", "arch": "all" } ],
+    "include_dirs": [ "scripts", "root", "pkgs" ],
+    "pack": { "tool": "pica-pack", "format": "pkg.tar.gz" }
+  },
+  "publish": {
+    "registry_db": "r/apk/uugamebooster@xiaodoudou/db.json",
+    "keep_release_history": 1
+  }
+}

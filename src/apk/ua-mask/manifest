@@ -1,0 +1,22 @@
+pkgname = ua-mask
+appname = ua-mask
+pkgver = 0.4.3
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = A lightweight tool to mask User-Agent and other headers in OpenWrt.
+url = https://github.com/Zesuy/UA-Mask
+branch = main
+protocol = cli
+license = GPL-3.0-only
+visibility = open
+packager = pica-pack
+type = cli
+targets = apk
+app = ua-mask
+
+# The upstream ipk records this; the apk carries its own copy and pica checks
+# the declaration before handing the container to the system package manager.
+base = luci-compat

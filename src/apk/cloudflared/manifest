@@ -1,0 +1,27 @@
+pkgname = cloudflared
+appname = cloudflared
+pkgver = 1.2
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = LuCI interface for Cloudflared, for managing a Cloudflare Tunnel that exposes a local service without opening a port.
+url = https://github.com/cloudflare/cloudflared
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-cloudflared
+branch = master
+protocol = luci
+luci_desc = LuCI for Cloudflared
+license = Apache-2.0
+visibility = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Its control declares +cloudflared (the recipe's LUCI_DEPENDS), so the tunnel
+# client rides along. It is a separate container rather than a merged tree, so
+# apk still records what it installed and either can be updated on its own.
+app = luci-app-cloudflared
+app = cloudflared
+base = luci-base

@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "adguardhome",
@@ -46,10 +45,9 @@
       }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -57,7 +55,6 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/adguardhome/db.json",
     "keep_release_history": 1
   }

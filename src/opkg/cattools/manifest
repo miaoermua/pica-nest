@@ -1,0 +1,38 @@
+pkgname = cattools
+appname = cattools
+pkgver = 1.1
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = A powerful CatWrt toolbox written in BASH. Blog: https://www.miaoer.net/posts/blog/cattools
+url = https://github.com/miaoermua/cattools
+branch = main
+protocol = cli
+license = GPL-2.0-only
+visibility = open
+packager = pica-pack-rs
+type = cli
+
+# 构建目标。产物 manifest 里的 pkgmgr 由 pica-pack 写入，源 manifest 不声明。
+#
+# 两个后端各出一份产物。依赖写成 `<key>@opkg` 而不是裸 `<key>`：pica 侧读到
+# 等价于空的一组，`check_pica_declares_no_dependencies` 因此不拦它，而 opkg
+# 侧按自己的名字正常安装。裸 `base` 会被 pica 侧读到并拒收。
+targets = opkg, pica
+
+# 依赖全部交给 opkg。pica 不做依赖求解，所以带 @opkg 的键对它是不可见的——
+# 这也是这份包能被 pica 后端铺下的原因：它铺的是脚本，脚本要跑的运行时是
+# opkg 装的，两者互不越界。
+base@opkg = bash
+# 带版本约束的依赖：约束由 pica 在本机校验，不会传给 opkg。
+# 7.0 是保守下限（OpenWrt 19.07 起 curl 均高于它），写高了会拒绝老设备安装。
+base@opkg = curl>=7.0
+base@opkg = unzip
+base@opkg = jq
+
+# 生命周期脚本。scripts/ 下的文件会按需保留到 /usr/lib/pica/scripts/cattools/。
+script_install = scripts/install
+script_update = scripts/update
+script_remove = scripts/remove

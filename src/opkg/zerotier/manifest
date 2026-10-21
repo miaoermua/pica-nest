@@ -9,7 +9,7 @@ pkgrel = 14
 os = openwrt
 platform = all
 arch = all
-pica = 0.2.8
+pica = 0.3.33
 
 pkgdesc = ZeroTier VPN Plugin (ImmortalWrt LuCI2 version)
 packager = pica-pack
@@ -17,7 +17,7 @@ license = MPL-2.0
 visibility = open
 type = luci
 luci = js2
-pkgmgr = opkg
+targets = opkg
 source = pica
 
 # Install plan

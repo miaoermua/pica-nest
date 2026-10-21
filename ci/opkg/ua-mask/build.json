@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "ua-mask",
@@ -18,7 +17,7 @@
         {
           "name": "ua-mask-pkg",
           "role": "app",
-          "regex": "^UAmask_0\\.4\\.3-1_(.*)\\.ipk$",
+          "regex": "^UAmask_[0-9].*-r?[0-9]+-?(.*)\\.ipk$",
           "required": true,
           "capture_to": {
             "arch": 1
@@ -35,17 +34,27 @@
   },
   "build": {
     "matrix": [
-      { "platform": "amd64", "arch": "x86_64" },
-      { "platform": "arm64", "arch": "aarch64_generic" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a53" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a72" },
-      { "platform": "mipsel", "arch": "mipsel_24kc" }
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -53,7 +62,6 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/ua-mask/db.json"
   }
 }

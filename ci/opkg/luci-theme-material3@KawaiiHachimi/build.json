@@ -1,0 +1,61 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "opkg",
+  "id": "luci-theme-material3@KawaiiHachimi",
+  "enabled": true,
+  "manifest": "src/opkg/luci-theme-material3@KawaiiHachimi/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "KawaiiHachimi/luci-theme-material3",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v[0-9]+(?:\\.[0-9]+)*$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "theme",
+          "role": "app",
+          "regex": "^luci-theme-material3_[0-9].*_all\\.ipk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "1.0.6"
+    },
+    "pkgrel": {
+      "from": "manifest",
+      "fallback": 1
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    }
+  },
+  "publish": {
+    "registry_db": "r/opkg/luci-theme-material3@KawaiiHachimi/db.json",
+    "keep_release_history": 1
+  }
+}

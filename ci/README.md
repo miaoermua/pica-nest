@@ -5,7 +5,10 @@
 ## 📂 目录结构
 
 *   `opkg/`：针对基于 OpenWrt opkg 管理的应用构建规则。
-*   `none/`：针对免管理器（纯脚本/二进制）的应用构建规则。
+*   `apk/`：针对基于 OpenWrt apk 管理的应用构建规则。
+*   `pica/`：针对不需要系统包管理器、由 Pica 直接铺放 `root/` 的应用构建规则。
+
+目录名就是该 job 的 `mgr`（见各 `build.json` 的 `mgr` 字段），两者必须一致，`validate_repo.py` 会检查。
 
 ## ⚙️ build.json 职能
 

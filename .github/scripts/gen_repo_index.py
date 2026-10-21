@@ -1,127 +1,137 @@
 #!/usr/bin/env python3
+"""Merge the repo.json files that `pica-pack` emits into one repo index.
+
+`pica-pack` already writes a schema 2 `repo.json` next to each artifact, built
+from `pica_pkg_core::manifest::Manifest`. That output is the authority on what
+went into a package: it carries the required `pkgmgr`, keeps repeated manifest
+fields such as `base`/`app` as arrays, and derives the filename suffix from
+`pkgmgr`. Re-parsing manifests here would undo all of that, so this script only
+merges, validates and copies.
+
+Packages are keyed by `(pkgmgr, pkgname)` because `pkgmgr` is part of a
+package's identity: the same application may be published once per backend.
+
+Usage:
+    gen_repo_index.py [--repo REPO_JSON] <repo.json> [<repo.json> ...]
+"""
+import argparse
+import datetime
 import json
 import os
-import tarfile
-import hashlib
+import shutil
 import sys
-import datetime
 
-REPO_JSON_PATH = 'r/repo.json'
+# Mirrors REPO_SCHEMA in crates/pica-pkg-core/src/repo.rs.
+REPO_SCHEMA = 2
+PKG_EXTENSION = ".pkg.tar.gz"
+# Mirrors SUPPORTED_PKGMGRS in the same file.
+SUPPORTED_PKGMGRS = ("opkg", "apk", "pica")
+DEFAULT_REPO_JSON = "r/repo.json"
 
-def calculate_sha256(filepath):
-    sha256_hash = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for byte_block in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(byte_block)
-    return sha256_hash.hexdigest()
 
-def parse_manifest(manifest_content):
-    """Parses a simple key=value manifest to a dict."""
-    data = {}
-    for line in manifest_content.splitlines():
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-        if '=' in line:
-            key, val = line.split('=', 1)
-            # Remove surrounding quotes if they exist
-            val = val.strip()
-            if val.startswith('"') and val.endswith('"'):
-                val = val[1:-1]
-            elif val.startswith("'") and val.endswith("'"):
-                val = val[1:-1]
-            data[key.strip()] = val
-    return data
+def load_pack_repo(path):
+    """Load one `pica-pack` repo.json, verifying it is the schema we expect."""
+    with open(path, "r", encoding="utf-8") as handle:
+        index = json.load(handle)
+
+    schema = index.get("schema")
+    if schema != REPO_SCHEMA:
+        raise ValueError(f"{path}: schema must be {REPO_SCHEMA}, got {schema!r}")
+    if not isinstance(index.get("packages"), list):
+        raise ValueError(f"{path}: packages must be an array")
+
+    for pkg in index["packages"]:
+        label = pkg.get("pkgname", "<unnamed>")
+        for field in ("pkgname", "pkgver", "pkgrel", "pkgmgr", "filename", "sha256"):
+            if not pkg.get(field):
+                raise ValueError(f"{path}: package {label} missing {field}")
+        if pkg["pkgmgr"] not in SUPPORTED_PKGMGRS:
+            raise ValueError(f"{path}: package {label} has unsupported pkgmgr {pkg['pkgmgr']!r}")
+        if not pkg["filename"].endswith(PKG_EXTENSION):
+            raise ValueError(f"{path}: {label} filename must end with {PKG_EXTENSION}")
+    return index
+
+
+def copy_artifacts(index, source_dir, repo_dir):
+    """Place each package file where `pica -S` looks for it.
+
+    `pica -S` fetches `<repo>/repo.json` and then `<repo>/packages/<filename>`,
+    so artifacts have to travel with the index instead of staying in the CI
+    workspace.
+    """
+    packages_dir = os.path.join(repo_dir, "packages")
+    os.makedirs(packages_dir, exist_ok=True)
+
+    for pkg in index["packages"]:
+        source = os.path.join(source_dir, pkg["filename"])
+        if os.path.isfile(source):
+            shutil.copy2(source, os.path.join(packages_dir, pkg["filename"]))
+        else:
+            print(f"warning: {pkg['pkgname']}: artifact missing, index will point at {pkg['filename']}")
+
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: gen_repo_index.py <path_to_pkg_tar_gz_1> [path_to_pkg_tar_gz_2 ...]")
-        return # If no new packages, do nothing
+    parser = argparse.ArgumentParser(description="Merge pica-pack repo.json files into one index.")
+    parser.add_argument("inputs", nargs="+", help="repo.json files written by pica-pack")
+    parser.add_argument("--repo", default=DEFAULT_REPO_JSON, help="merged index to write")
+    parser.add_argument("--no-copy", action="store_true", help="skip copying artifacts next to the index")
+    args = parser.parse_args()
 
-    pkg_files = sys.argv[1:]
-    
-    # Load existing repo.json
-    repo_meta = {
-        "pica_protocol": 1,
-        "schema": "pica-repo-index-v1",
-        "repo_name": "Pica 官方社区软件源",
-        "repo_desc": "Pica Official Community Software Source",
-        "generated_at": ""
-    }
-    repo_packages = []
-    
-    if os.path.exists(REPO_JSON_PATH):
-        with open(REPO_JSON_PATH, 'r', encoding='utf-8') as f:
-            try:
-                data = json.load(f)
-                if isinstance(data, dict):
-                    # Preserve existing meta and extract packages
-                    repo_meta.update({k: v for k, v in data.items() if k != 'packages'})
-                    repo_packages = data.get('packages', [])
-                elif isinstance(data, list):
-                    # Migration from old flat array
-                    repo_packages = data
-            except json.JSONDecodeError:
-                pass
-                
-    if not isinstance(repo_packages, list):
-        print(f"Warning: packages in {REPO_JSON_PATH} is not a JSON array, resetting.")
-        repo_packages = []
-        
-    repo_map = {item.get('pkgname'): item for item in repo_packages if isinstance(item, dict) and 'pkgname' in item}
+    if not os.path.isfile(args.repo):
+        print(
+            f"error: {args.repo} does not exist. Create a schema {REPO_SCHEMA} index first"
+            " (the generator no longer invents one, because it cannot know the fields).",
+            file=sys.stderr,
+        )
+        return 1
 
-    os.makedirs('r', exist_ok=True)
+    repo_dir = os.path.dirname(os.path.abspath(args.repo))
 
-    for pkg_filepath in pkg_files:
-        if not os.path.exists(pkg_filepath):
-            print(f"Skipping {pkg_filepath}, file not found.")
-            continue
-            
-        filename = os.path.basename(pkg_filepath)
-        sha256sum = calculate_sha256(pkg_filepath)
-        
-        manifest_data = {}
+    with open(args.repo, "r", encoding="utf-8") as handle:
+        existing = json.load(handle)
+    if existing.get("schema") != REPO_SCHEMA:
+        print(
+            f"error: {args.repo} is schema {existing.get('schema')!r} but {REPO_SCHEMA} is required."
+            " Rewrite it to schema 2 or delete it to regenerate.",
+            file=sys.stderr,
+        )
+        return 1
+
+    merged = {(pkg["pkgmgr"], pkg["pkgname"]): pkg for pkg in existing.get("packages", [])}
+
+    for path in args.inputs:
         try:
-            with tarfile.open(pkg_filepath, 'r:gz') as tar:
-                # Find manifest file. It might be in the root of the tar or under a dir.
-                # Assuming it's named 'manifest'
-                manifest_member = None
-                for member in tar.getmembers():
-                    if member.name.endswith('manifest'):
-                        manifest_member = member
-                        break
-                
-                if manifest_member:
-                    f = tar.extractfile(manifest_member)
-                    content = f.read().decode('utf-8')
-                    manifest_data = parse_manifest(content)
-                else:
-                    print(f"Warning: No 'manifest' file found in {pkg_filepath}")
-                    continue
-        except Exception as e:
-            print(f"Error reading {pkg_filepath}: {e}")
-            continue
+            index = load_pack_repo(path)
+        except (OSError, ValueError, json.JSONDecodeError) as err:
+            print(f"error: {err}", file=sys.stderr)
+            return 1
 
-        pkgname = manifest_data.get('pkgname')
-        if not pkgname:
-            print(f"Warning: 'pkgname' not found in manifest of {pkg_filepath}")
-            continue
-            
-        # Update or add package info
-        manifest_data['filename'] = filename
-        manifest_data['sha256'] = sha256sum
-        
-        repo_map[pkgname] = manifest_data
-        print(f"Processed {filename} -> {pkgname} version {manifest_data.get('pkgver')}")
+        if not args.no_copy:
+            copy_artifacts(index, os.path.dirname(os.path.abspath(path)), repo_dir)
 
-    # Write back the wrapped structured JSON
-    repo_meta["generated_at"] = datetime.datetime.utcnow().isoformat() + "Z"
-    repo_meta["packages"] = list(repo_map.values())
-    
-    with open(REPO_JSON_PATH, 'w', encoding='utf-8') as f:
-        json.dump(repo_meta, f, indent=2, ensure_ascii=False)
-        
-    print(f"Successfully updated {REPO_JSON_PATH} with {len(repo_meta['packages'])} packages.")
+        for pkg in index["packages"]:
+            key = (pkg["pkgmgr"], pkg["pkgname"])
+            previous = merged.get(key)
+            if previous and previous.get("pkgver") != pkg["pkgver"]:
+                print(f"note: {key[1]} ({key[0]}): {previous.get('pkgver')} -> {pkg['pkgver']}")
+            merged[key] = pkg
 
-if __name__ == '__main__':
-    main()
+    packages = sorted(merged.values(), key=lambda pkg: (pkg["pkgname"], pkg["pkgmgr"]))
+    existing["packages"] = packages
+    existing["generated_at"] = (
+        datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+    )
+    # Repo-level metadata the operator owns.
+    existing.setdefault("repo_name", "Pica 官方社区软件源")
+    existing.setdefault("repo_desc", "Pica Official Community Software Source")
+
+    with open(args.repo, "w", encoding="utf-8") as handle:
+        json.dump(existing, handle, indent=2, ensure_ascii=False)
+        handle.write("\n")
+
+    print(f"updated {args.repo} with {len(packages)} package(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

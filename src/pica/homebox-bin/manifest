@@ -1,0 +1,17 @@
+pkgname = homebox-bin
+appname = homebox
+pkgver = 0.1.3
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = A self-hosted file transfer and speed test tool, serving its own web interface from a single binary.
+url = https://github.com/xgheaven/homebox
+branch = main
+protocol = cli
+license = MIT
+visibility = open
+packager = pica-pack
+type = cli
+targets = pica

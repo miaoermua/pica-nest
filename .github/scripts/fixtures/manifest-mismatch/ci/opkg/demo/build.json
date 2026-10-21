@@ -1,0 +1,56 @@
+{
+  "schema": "pica-ci-job-v1",
+  "mgr": "opkg",
+  "id": "demo",
+  "enabled": true,
+  "manifest": "src/apk/demo/manifest",
+  "source": {
+    "provider": "github",
+    "repo": "example/demo",
+    "release": {
+      "tag": {
+        "mode": "regex",
+        "regex": "^v[0-9.]+$"
+      },
+      "allow_prerelease": false,
+      "assets": [
+        {
+          "name": "demo",
+          "role": "app",
+          "regex": "^demo(-.*)?\\.ipk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
+        }
+      ]
+    }
+  },
+  "versioning": {
+    "pkgver": {
+      "from": "manifest",
+      "fallback": "1.0"
+    }
+  },
+  "build": {
+    "matrix": [
+      {
+        "platform": "all",
+        "arch": "all"
+      }
+    ],
+    "pack": {
+      "tool": "pica-pack",
+      "format": "pkg.tar.gz"
+    },
+    "include_dirs": [
+      "scripts",
+      "root",
+      "pkgs"
+    ]
+  },
+  "publish": {
+    "registry_db": "r/opkg/demo/db.json"
+  }
+}

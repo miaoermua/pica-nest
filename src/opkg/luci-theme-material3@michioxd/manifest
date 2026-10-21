@@ -1,0 +1,26 @@
+pkgname = luci-theme-material3@michioxd
+appname = luci-theme-material3
+pkgver = 0.1
+pkgrel = 1
+os = openwrt
+platform = all
+arch = all
+pica = 0.3.33
+pkgdesc = Material 3 theme for the LuCI web interface, a variant maintained by michioxd.
+url = https://github.com/michioxd/luci-theme-material3
+luci_url = https://github.com/michioxd/luci-theme-material3
+branch = main
+protocol = luci
+luci_desc = Material 3 theme for LuCI (michioxd)
+license = Apache-2.0
+visibility = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = opkg
+
+# Two forks of this theme install the same upstream package name, so the fork
+# is carried in this package's own name. `app` stays the upstream name: that is
+# the package opkg installs.
+app = luci-theme-material3
+base = luci-base

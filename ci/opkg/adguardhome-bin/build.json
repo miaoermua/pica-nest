@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "adguardhome-bin",
@@ -7,7 +6,7 @@
   "manifest": "src/opkg/adguardhome-bin/manifest",
   "source": {
     "provider": "http_template",
-    "url_template": "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/adguardhome_{version}_{arch}.ipk",
+    "url_template": "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/adguardhome_0.107.57-r1_{arch}.ipk",
     "version": "0.107.57-r1"
   },
   "versioning": {
@@ -44,10 +43,9 @@
       }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -55,7 +53,6 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/adguardhome-bin/db.json",
     "keep_release_history": 1
   }

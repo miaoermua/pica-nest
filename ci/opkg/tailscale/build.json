@@ -1,5 +1,4 @@
 {
-  "pica_protocol": 1,
   "schema": "pica-ci-job-v1",
   "mgr": "opkg",
   "id": "tailscale",
@@ -7,7 +6,7 @@
   "manifest": "src/opkg/tailscale/manifest",
   "source": {
     "provider": "http_template",
-    "url_template": "https://mirrors.pku.edu.cn/immortalwrt/releases/24.10-SNAPSHOT/packages/{arch}/packages/tailscale_{version}_{arch}.ipk",
+    "url_template": "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}/packages/tailscale_1.80.3-r1_{arch}.ipk",
     "version": "1.80.3-r1"
   },
   "versioning": {
@@ -18,17 +17,31 @@
   },
   "build": {
     "matrix": [
-      { "platform": "amd64", "arch": "x86_64" },
-      { "platform": "arm64", "arch": "aarch64_generic" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a53" },
-      { "platform": "arm64", "arch": "aarch64_cortex-a72" },
-      { "platform": "mipsel", "arch": "mipsel_24kc" }
+      {
+        "platform": "amd64",
+        "arch": "x86_64"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_generic"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a53"
+      },
+      {
+        "platform": "arm64",
+        "arch": "aarch64_cortex-a72"
+      },
+      {
+        "platform": "mipsel",
+        "arch": "mipsel_24kc"
+      }
     ],
     "include_dirs": [
-      "cmd",
-      "binary",
-      "depend",
-      "src"
+      "scripts",
+      "root",
+      "pkgs"
     ],
     "pack": {
       "tool": "pica-pack",
@@ -36,7 +49,6 @@
     }
   },
   "publish": {
-    "manifest_index": "src/opkg/manifest.json",
     "registry_db": "r/opkg/tailscale/db.json"
   }
 }

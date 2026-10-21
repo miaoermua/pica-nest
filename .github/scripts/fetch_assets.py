@@ -3,9 +3,13 @@ import sys
 import json
 import re
 import urllib.request
+import tarfile
 import zipfile
 import tempfile
 import shutil
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from container_metadata import check_downloaded
 
 def fetch_json(url):
     print(f"Fetching {url}...")
@@ -134,7 +138,12 @@ def fetch_github_assets(pkg_dir, build_config):
                 if not target_platform: target_platform = "all"
                 if not target_arch: target_arch = "all"
 
-                dest_dir = os.path.join(pkg_dir, "binary", target_platform, target_arch)
+                # Pica 包布局：`pkgs/<backend>/<platform>/<arch>/`。后端取自
+                # build.json 的 `mgr`，与 manifest 的 `targets` 必须一致，否则
+                # pica-pack 会以"pkgs/<backend>/ present but <backend> is not
+                # in targets"拒绝构建。
+                backend = build_config.get("mgr", "opkg")
+                dest_dir = os.path.join(pkg_dir, "pkgs", backend, target_platform, target_arch)
                 
                 # If we need to extract from zip, we download to a temporary location first
                 if inner_regex and a["name"].endswith(".zip"):
@@ -191,7 +200,8 @@ def fetch_http_template_assets(pkg_dir, build_config):
         for url_template in url_templates:
             url = url_template.replace("{arch}", arch).replace("{version}", version).replace("{platform}", platform)
             filename = url.split("/")[-1]
-            dest_dir = os.path.join(pkg_dir, "binary", platform, arch)
+            backend = build_config.get("mgr", "opkg")
+            dest_dir = os.path.join(pkg_dir, "pkgs", backend, platform, arch)
             dest_path = os.path.join(dest_dir, filename)
 
             if download_file(url, dest_path):
@@ -200,6 +210,182 @@ def fetch_http_template_assets(pkg_dir, build_config):
                 print(f"Could not download asset for {arch} from {url}")
 
     return found_any
+
+def extract_tarball(pkg_dir, build_config):
+    """
+    Download a release archive and unpack it into the package's root/.
+
+    A source that ships no package of its own — a bare upstream tarball — has
+    nowhere else to go: the artifacts a `pica` backend package carries are
+    plain files under `root/`, and there is no container to put the download in.
+    Unpacking it here is what makes that shape buildable.
+
+    `strip_components` drops that many leading path components, because these
+    archives wrap everything in one directory whose name is tied to the release
+    (`fastfetch-musl-amd64/...`). Leaving it in place would put the binary one
+    level too deep, and the command would not be where the manifest says it is.
+
+    `include` narrows the unpack to the paths a device actually needs: a full
+    archive also carries shell completions and man pages, which are dead weight
+    on a router.
+    """
+    source = build_config["source"]
+    url_template = source.get("url_template")
+    url_templates = source.get("url_templates") or ([url_template] if url_template else [])
+    if not url_templates:
+        print("error: tarball provider needs url_template or url_templates", file=sys.stderr)
+        return False
+
+    strip = source.get("strip_components", 0)
+    includes = source.get("include") or []
+    matrix = build_config.get("build", {}).get("matrix", [{}])
+    root_dir = os.path.join(pkg_dir, "root")
+
+    ok = True
+    for entry in matrix:
+        platform = entry.get("platform", "all")
+        arch = entry.get("arch", "all")
+        matched = False
+
+        for template in url_templates:
+            # A source may name architectures its own way. A Go project calls
+            # x86_64 `amd64` and aarch64 `arm64`, and a URL carrying that name
+            # cannot be built by substituting the manifest's arch into it —
+            # arch_map is how a package says which of the two it means.
+            mapped = (source.get("arch_map") or {}).get(arch, arch)
+            url = (template
+                   .replace("{platform}", str(platform))
+                   .replace("{arch}", str(mapped))
+                   .replace("{version}", str(source.get("version", ""))))
+            if "{arch}" not in template and len(matrix) > 1:
+                # One URL cannot answer for several architectures, and picking
+                # the first would ship one build labelled as the others.
+                continue
+
+            # A `pica` artifact has no per-architecture layout to put a build
+            # in: `root/` is deployed as it stands, so `<platform>/<arch>/`
+            # would reach the device as a directory at the root of the
+            # filesystem. The matrix selects which archive to fetch, not where
+            # it lands.
+            subdir = str(source.get("dest_subdir", "")).strip("/")
+            dest = os.path.join(root_dir, subdir) if subdir else root_dir
+
+            os.makedirs(dest, exist_ok=True)
+            archive = os.path.join(dest, os.path.basename(url.split("?")[0]))
+
+            print(f"Fetching {url}...")
+            if not download_file(url, archive):
+                print(f"warning: could not fetch {url}", file=sys.stderr)
+                ok = False
+                continue
+
+            if not unpack_into(dest, strip, includes, source.get("rename")):
+                ok = False
+                continue
+            matched = True
+            print(f"Unpacked into {os.path.relpath(dest, pkg_dir)}")
+            break
+
+        if not matched and ok:
+            print(f"error: no archive matched {platform}/{arch}", file=sys.stderr)
+            ok = False
+
+    return ok
+
+
+def unpack_into(dest, strip, includes, rename=None):
+    """
+    Unpack a downloaded archive in place, leaving the files under `dest`.
+
+    A download that is not an archive is placed under `rename` instead, which
+    is what a release of one bare binary needs: the archive's members keep the
+    names they had inside it, but a single file's name is the upstream's, and
+    the device wants it where the manifest says.
+
+    The download is removed afterwards either way: it is an input to the
+    build, and under `root/` it would otherwise be deployed to the device as a
+    stray file.
+    """
+    archives = [n for n in os.listdir(dest) if n.endswith((".tar.gz", ".tgz", ".tar.xz"))]
+    if not archives:
+        # Not every upstream ships an archive. A release of a single static
+        # binary is one file, and a package carrying it needs that file at a
+        # path of its own choosing — the download's name says what it is
+        # upstream, not where it belongs on the device.
+        stray = [n for n in os.listdir(dest) if os.path.isfile(os.path.join(dest, n))]
+        if not stray:
+            print(f"error: nothing to unpack in {dest}", file=sys.stderr)
+            return False
+        target = rename or stray[0]
+        destination = os.path.join(dest, target)
+        if os.path.abspath(destination) != os.path.abspath(os.path.join(dest, stray[0])):
+            os.rename(os.path.join(dest, stray[0]), destination)
+        # Whatever it was called upstream, the device gets the name the
+        # manifest promises, and an executable has to arrive executable.
+        os.chmod(destination, 0o755)
+        for name in os.listdir(dest):
+            if name != target:
+                try:
+                    os.remove(os.path.join(dest, name))
+                except OSError as err:
+                    print(f"warning: could not remove {name}: {err}", file=sys.stderr)
+        print(f"Placed {target}")
+        return True
+
+    for name in archives:
+        path = os.path.join(dest, name)
+        try:
+            with tarfile.open(path, "r:*") as tar:
+                members = []
+                for member in tar.getmembers():
+                    if not member.isfile():
+                        continue
+                    parts = member.name.split("/")
+                    if len(parts) <= strip:
+                        continue
+                    member.name = "/".join(parts[strip:])
+                    if includes and not any(
+                            member.name == pattern or member.name.startswith(pattern.rstrip("*"))
+                            for pattern in includes):
+                        continue
+                    members.append(member)
+                if not members:
+                    print(f"error: {name} contains none of {includes}", file=sys.stderr)
+                    return False
+
+                if rename:
+                    # An archive of one file names it the way the release does,
+                    # which is not necessarily the name the device expects.
+                    # Giving it the manifest's name is the same thing the
+                    # non-archive path does, so a package can ask for it either
+                    # way without knowing which it got.
+                    if len(members) != 1:
+                        print(
+                            f"error: {name} holds {len(members)} files; rename applies to an "
+                            "archive of one, use include to narrow it first",
+                            file=sys.stderr,
+                        )
+                        return False
+                    members[0].name = rename
+                    tar.extractall(dest, members=members, filter="data")
+                    os.chmod(os.path.join(dest, rename), 0o755)
+                    # Fall through to the removal below: the archive is an
+                    # input either way, and leaving it under root/ would ship
+                    # it to the device.
+                else:
+                    tar.extractall(dest, members=members, filter="data")
+        except (tarfile.TarError, OSError) as err:
+            print(f"error: unpacking {name} failed: {err}", file=sys.stderr)
+            return False
+
+        # The archive is this package's build input, not part of it: left under
+        # `root/` it would be deployed to the device as a stray megabyte.
+        try:
+            os.remove(path)
+        except OSError as err:
+            print(f"warning: could not remove {path}: {err}", file=sys.stderr)
+    return True
+
 
 def main():
     if len(sys.argv) < 2:
@@ -223,12 +409,27 @@ def main():
         success = fetch_github_assets(pkg_dir, build_config)
     elif provider == "http_template":
         success = fetch_http_template_assets(pkg_dir, build_config)
+    elif provider == "tarball":
+        success = extract_tarball(pkg_dir, build_config)
     else:
         print(f"Unknown provider: {provider}")
         sys.exit(1)
 
     if not success:
         print("Fetch failed or no assets found.")
+        sys.exit(1)
+
+    # A container installs under the name in its control metadata, which is not
+    # the name it was matched by. Verify the manifest declares that name, so a
+    # rename upstream fails the build instead of shipping a broken package.
+    problems, skipped = check_downloaded(pkg_dir, build_config)
+    for path in skipped:
+        print(f"warning: could not read the package name of {path}; not verified")
+    if problems:
+        for problem in problems:
+            print(f"error: {problem}", file=sys.stderr)
+        print(f"\n{len(problems)} dependency mismatch(es)", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
