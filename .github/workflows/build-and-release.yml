@@ -63,6 +63,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: miaoermua/pica
+          # TEMPORARY: pica 0.3.33 (scripts/ layout, explicit -opkg/-apk/-pica
+          # suffixes) is on the `apk` branch. `main` is still 0.3.0 and its
+          # packer requires a `cmd/` directory that this repository no longer
+          # has. Drop this ref once 0.3.33 is merged to main.
+          ref: apk
           path: pica-source
 
       - name: Setup Rust toolchain
