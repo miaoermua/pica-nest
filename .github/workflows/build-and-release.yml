@@ -175,10 +175,15 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add r/repo.json r/packages
+          # A workflow-only (or validation-only) run builds nothing, so
+          # r/packages may not exist; `git add` on a missing path is fatal.
+          git add r/repo.json
+          if [ -d r/packages ]; then
+            git add r/packages
+          fi
           if git diff --staged --quiet; then
             echo "No changes to r/ to commit."
           else
             git commit -m "chore: auto-update r/repo.json and r/packages [skip ci]"
-            git push origin $GITHUB_REF_NAME
+            git push origin "$GITHUB_REF_NAME"
           fi
