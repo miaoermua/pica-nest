@@ -15,7 +15,22 @@
 ### 2. `gen_repo_index.py` (索引聚合器)
 它是仓库的“索引师”，负责在每个 CI 周期完成后，扫描 `build_output` 下的所有包，合并生成单一的 `repo.json` 索引文件。
 
-### 3. `changed_packages.py` (变更映射器)
+同一次运行里它还写出 `r/` 的其余文件：`index.json`（入口描述）与 `r/<mgr>/index.json`（各后端视图）。
+视图由 `repo.json` 派生（实现在 `repo_layout.py`），不另行维护 —— 否则两者迟早会各说各话。
+
+### 3. `repo_layout.py` (布局规则)
+`r/index.json` 与各后端索引的读写与校验规则都在这里，生成器与校验器共用一份：
+
+* **路径安全**：`path` 必须是相对路径，拒绝协议、主机、前导斜杠、`..`、反斜杠、查询串；
+  解析后再用 realpath 确认没有借符号链接跑出 `r/`。
+* **只声明存在的后端**：某个 `pkgmgr` 一个包都没有时，不生成它的索引，也不在描述里声明。
+* **单一数据源**：`consistency_errors()` 比较各后端索引与 `repo.json` 的对应切片，不一致即失败。
+
+### 4. `validate_index_layout.py` (布局校验)
+`--root r` 校验提交树里的那五个文件；`--select apk,pica` 按客户端实际运行的后端组合打印该读哪几份索引，
+未声明的后端返回「不可用」而不是找邻居顶替。PR 与发布前都会跑。
+
+### 5. `changed_packages.py` (变更映射器)
 它回答“这次提交要重建哪些包”：`src/<mgr>/<pkg>/**` 与 `ci/<mgr>/<pkg>/build.json`
 （含新增、删除、重命名两侧）都映射到对应包；`schema/`、`.github/scripts/*.py`、
 `.github/workflows/**` 只触发全量**校验**，不会重新打包全部包；无法解析 diff 基准时
@@ -65,7 +80,9 @@
 2.  **src/<backend>/<app>/scripts/ [install|update|remove]**: 软件包的生命周期脚本（可选）。
 3.  **src/<backend>/<app>/root/**: 按目标路径镜像安装的载荷（可选）。
 4.  **ci/<backend>/<app>/build.json**: 软件包在 CI 周期中的自动化规则，字段见 `schema/ci-job-v1.schema.json`。
-5.  **r/repo.json**: `pica -S` 拉取的索引（schema 2）。每个条目的 `download_url` 指向 GitHub Releases 资产；仓库内不保存任何 `.pkg.tar.gz`。
+5.  **r/index.json**: 入口描述（schema 1），声明本源提供哪些后端、各自索引的相对路径。
+6.  **r/<mgr>/index.json**: 各后端视图，内容与 `r/repo.json` 的对应切片逐字相同。
+7.  **r/repo.json**: `pica -S` 拉取的索引（schema 2）。每个条目的 `download_url` 指向 GitHub Releases 资产；仓库内不保存任何 `.pkg.tar.gz`。
 
 ---
 

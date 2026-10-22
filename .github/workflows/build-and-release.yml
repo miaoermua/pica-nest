@@ -191,6 +191,9 @@ jobs:
             --download-base "$DOWNLOAD_BASE" \
             --release-list "$RUNNER_TEMP/release-files.txt"
           python3 .github/scripts/validate_repo.py --quiet
+          # The layout is generated alongside the index; failing here means the
+          # generator produced views that do not match what it just wrote.
+          python3 .github/scripts/validate_index_layout.py --quiet
 
           ARTIFACT_DIRS=()
           for dir in build_output/*/; do
@@ -275,13 +278,20 @@ jobs:
           python3 .github/scripts/gen_repo_index.py dist/build_output/*/repo.json \
             --download-base "$DOWNLOAD_BASE" \
             --artifacts-dir dist/packages
+          python3 .github/scripts/validate_index_layout.py --quiet
           python3 .github/scripts/verify_artifacts.py \
             --index r/repo.json \
             --download-base "$DOWNLOAD_BASE" \
             --artifacts-dir dist/packages \
             --require-file dist/release-files.txt
 
-          if git diff --quiet -- r/repo.json; then
+          # Stage before deciding what changed. The layout adds files, and a
+          # backend that lost its last package leaves a deletion — neither shows
+          # up in `git diff` against a path that has to exist already. The
+          # binary guard runs on what is staged, so this is also the point where
+          # a stray archive would be caught rather than committed.
+          git add -A -- r
+          if git diff --staged --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "Index is unchanged; no release and no commit needed."
             exit 0
@@ -347,10 +357,10 @@ jobs:
           set -euo pipefail
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add r/repo.json
+          git add -A -- r
           if git diff --staged --quiet; then
             echo "No index change to commit."
             exit 0
           fi
-          git commit -m "chore: update r/repo.json index [skip ci]"
+          git commit -m "chore: update r/ index and backend views [skip ci]"
           git push origin "HEAD:${{ github.ref_name }}"

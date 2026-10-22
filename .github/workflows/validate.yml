@@ -6,6 +6,8 @@ on:
       - 'src/**'
       - 'ci/**'
       - 'schema/**'
+      - 'r/**'
+      - 'worker/**'
       - '.github/scripts/**'
       - '.github/workflows/**'
   workflow_call:
@@ -50,6 +52,15 @@ jobs:
       - name: Test the binary guard
         run: python3 .github/scripts/test_no_binaries.py
 
+      - name: Test the index layout
+        run: python3 .github/scripts/test_index_layout.py
+
+      # The worker is the distributed copy of this repository's routing: it is
+      # tested with a stubbed cache and upstream, so this needs no network and
+      # no credentials. Node is preinstalled on the runner.
+      - name: Test the Cloudflare Worker
+        run: node --test worker/test_worker.mjs
+
       # Hard gate, not a warning: a package archive in the tree means a build
       # directory leaked into a commit, and rewriting history later is the only
       # way back. Covers tracked files and anything the commit would add.
@@ -58,6 +69,12 @@ jobs:
 
       - name: Validate repository configuration
         run: python3 .github/scripts/validate_repo.py --check-pairs
+
+      # The committed tree, not a generated one: this is what a client fetches
+      # before any build runs, so drift between repo.json and the backend views
+      # has to be caught here rather than after a publish.
+      - name: Validate the published index layout
+        run: python3 .github/scripts/validate_index_layout.py
 
       - name: Check manifest and source versions
         run: python3 .github/scripts/check_versions.py

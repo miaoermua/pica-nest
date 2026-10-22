@@ -30,6 +30,12 @@ a package's identity:
   them and the survivors overwrite each other in matrix order — which is an
   arbitrary architecture winning, not a choice.
 
+The merged index is also the source of the `r/` layout: `r/index.json` and one
+`r/<mgr>/index.json` per backend are written from it in the same call (see
+`repo_layout.py`). They are views of this file, never a second place to edit —
+which is why they are written here rather than by a step of their own, where
+they could drift.
+
 Usage:
     gen_repo_index.py --download-base URL [--repo REPO_JSON] <repo.json>...
 """
@@ -38,6 +44,10 @@ import datetime
 import json
 import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+import repo_layout  # noqa: E402  (path set above so the script runs from anywhere)
 
 # Mirrors REPO_SCHEMA in crates/pica-pkg-core/src/repo.rs.
 REPO_SCHEMA = 2
@@ -122,6 +132,13 @@ def main():
         ),
     )
     parser.add_argument("--repo", default=DEFAULT_REPO_JSON, help="merged index to write")
+    parser.add_argument(
+        "--index-root",
+        help=(
+            "directory for index.json and the per-backend indexes;"
+            " defaults to the directory holding --repo"
+        ),
+    )
     parser.add_argument(
         "--download-base",
         help=(
@@ -226,6 +243,30 @@ def main():
     with open(args.repo, "w", encoding="utf-8") as handle:
         json.dump(existing, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+
+    # The layout is derived from what was just written, not from this run's
+    # inputs, so a backend whose packages are all historical still gets an index
+    # and one whose last package was dropped loses it.
+    index_root = args.index_root or os.path.dirname(os.path.abspath(args.repo))
+    try:
+        _, written, pruned = repo_layout.write_layout(
+            index_root,
+            packages,
+            existing["repo_name"],
+            existing.get("repo_desc"),
+            existing.get("generated_at"),
+        )
+    except repo_layout.LayoutError as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+    for relative in written:
+        print(f"wrote {relative} under {index_root}")
+    for relative in pruned:
+        print(f"removed {relative}: no packages left for that manager")
+    counts = {}
+    for pkg in packages:
+        counts[pkg["pkgmgr"]] = counts.get(pkg["pkgmgr"], 0) + 1
+    print("managers: " + (", ".join(f"{mgr}={counts[mgr]}" for mgr in sorted(counts)) or "none"))
 
     if args.release_list:
         os.makedirs(os.path.dirname(os.path.abspath(args.release_list)) or ".", exist_ok=True)
