@@ -132,5 +132,115 @@ class ReleaseListTest(unittest.TestCase):
             self.assertEqual(lines, [f"r/packages/{filename}"])
 
 
+class MultiArchIndexTest(unittest.TestCase):
+    """One job building several architectures must produce one entry each.
+
+    Keying the merge on `(pkgmgr, pkgname)` alone collapses them onto a single
+    entry: four artifacts reach `r/packages/` with nothing in the index naming
+    them, and `verify_artifacts` reports each as "built artifact has no index
+    entry". Which entry survives is then decided by matrix order rather than by
+    anything the repository chose.
+    """
+
+    ARCHES = [
+        ("amd64", "x86_64"),
+        ("arm64", "aarch64_generic"),
+        ("arm64", "aarch64_cortex-a53"),
+        ("arm64", "aarch64_cortex-a72"),
+        ("mipsel", "mipsel_24kc"),
+    ]
+
+    def test_every_architecture_keeps_its_own_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "r").mkdir()
+            (root / "r/repo.json").write_text(json.dumps({"schema": 2, "packages": []}))
+            output = root / "build/opkg"
+            output.mkdir(parents=True)
+
+            entries = []
+            for platform, arch in self.ARCHES:
+                filename = f"demo-1.0.0-1-{platform}-{arch}-opkg.pkg.tar.gz"
+                make_artifact(
+                    output / filename,
+                    f"pkgname = demo\npkgver = 1.0.0\npkgrel = 1\n"
+                    f"platform = {platform}\narch = {arch}\npkgmgr = opkg\n",
+                    {"pkgs/demo.ipk": b"ipk"},
+                )
+                entries.append({
+                    "pkgname": "demo", "pkgver": "1.0.0", "pkgrel": "1",
+                    "pkgmgr": "opkg", "platform": platform, "arch": arch,
+                    "filename": filename, "sha256": sha256(output / filename),
+                })
+            (output / "repo.json").write_text(json.dumps({"schema": 2, "packages": entries}))
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "gen_repo_index.py"),
+                 str(output / "repo.json"),
+                 "--repo", str(root / "r/repo.json"),
+                 "--release-list", str(root / "r/release-files.txt")],
+                cwd=root, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            merged = json.loads((root / "r/repo.json").read_text())["packages"]
+            self.assertEqual(len(merged), len(self.ARCHES), "one entry per architecture")
+            self.assertEqual(
+                {(pkg["platform"], pkg["arch"]) for pkg in merged},
+                set(self.ARCHES),
+            )
+            released = (root / "r/release-files.txt").read_text().splitlines()
+            self.assertEqual(len(released), len(self.ARCHES))
+
+    def test_an_older_entry_for_one_architecture_is_replaced_not_kept(self):
+        """A rebuild of one arch updates that entry and leaves the others alone."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "r").mkdir()
+            stale = {
+                "pkgname": "demo", "pkgver": "0.9", "pkgrel": "1", "pkgmgr": "opkg",
+                "platform": "amd64", "arch": "x86_64",
+                "filename": "demo-0.9-1-amd64-x86_64-opkg.pkg.tar.gz", "sha256": "b" * 64,
+            }
+            keep = {
+                "pkgname": "demo", "pkgver": "0.9", "pkgrel": "1", "pkgmgr": "opkg",
+                "platform": "mipsel", "arch": "mipsel_24kc",
+                "filename": "demo-0.9-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz", "sha256": "c" * 64,
+            }
+            (root / "r/repo.json").write_text(
+                json.dumps({"schema": 2, "packages": [stale, keep]})
+            )
+
+            output = root / "build/opkg"
+            output.mkdir(parents=True)
+            filename = "demo-1.0.0-1-amd64-x86_64-opkg.pkg.tar.gz"
+            make_artifact(
+                output / filename,
+                "pkgname = demo\npkgver = 1.0.0\npkgrel = 1\n"
+                "platform = amd64\narch = x86_64\npkgmgr = opkg\n",
+                {"pkgs/demo.ipk": b"ipk"},
+            )
+            (output / "repo.json").write_text(json.dumps({
+                "schema": 2,
+                "packages": [{
+                    "pkgname": "demo", "pkgver": "1.0.0", "pkgrel": "1",
+                    "pkgmgr": "opkg", "platform": "amd64", "arch": "x86_64",
+                    "filename": filename, "sha256": sha256(output / filename),
+                }],
+            }))
+
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "gen_repo_index.py"),
+                 str(output / "repo.json"), "--repo", str(root / "r/repo.json")],
+                cwd=root, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            merged = json.loads((root / "r/repo.json").read_text())["packages"]
+            by_arch = {pkg["arch"]: pkg["pkgver"] for pkg in merged}
+            self.assertEqual(by_arch["x86_64"], "1.0.0", "the rebuilt arch is updated")
+            self.assertEqual(by_arch["mipsel_24kc"], "0.9", "an untouched arch is left alone")
+
+
 if __name__ == "__main__":
     unittest.main()

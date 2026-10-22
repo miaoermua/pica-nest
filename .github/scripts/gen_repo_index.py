@@ -8,8 +8,15 @@ fields such as `base`/`app` as arrays, and derives the filename suffix from
 `pkgmgr`. Re-parsing manifests here would undo all of that, so this script only
 merges, validates and copies.
 
-Packages are keyed by `(pkgmgr, pkgname)` because `pkgmgr` is part of a
-package's identity: the same application may be published once per backend.
+Packages are keyed by `(pkgmgr, pkgname, platform, arch)`. All four are part of
+a package's identity:
+
+* `pkgmgr` — the same application may be published once per backend.
+* `platform`/`arch` — one job builds a package for several architectures, and
+  each produces its own artifact with its own filename. Keying without them
+  collapses five artifacts onto one entry, so four of them reach `r/packages/`
+  with nowhere in the index to be named, and the survivors overwrite each other
+  in matrix order — which is an arbitrary architecture winning, not a choice.
 
 Usage:
     gen_repo_index.py [--repo REPO_JSON] <repo.json> [<repo.json> ...]
@@ -50,6 +57,28 @@ def load_pack_repo(path):
         if not pkg["filename"].endswith(PKG_EXTENSION):
             raise ValueError(f"{path}: {label} filename must end with {PKG_EXTENSION}")
     return index
+
+
+def entry_key(pkg):
+    """Identity of one index entry: one artifact, not one package name.
+
+    Two entries that share these four fields name the same file, so one replaces
+    the other. Anything less and a multi-architecture build loses entries.
+    """
+    return (
+        pkg.get("pkgmgr", ""),
+        pkg.get("pkgname", ""),
+        pkg.get("platform", ""),
+        pkg.get("arch", ""),
+    )
+
+
+def describe(key):
+    """Name an entry the way `pica query` would, including where it runs."""
+    pkgmgr, pkgname, platform, arch = key
+    if platform or arch:
+        return f"{pkgname} ({pkgmgr}, {platform}/{arch})"
+    return f"{pkgname} ({pkgmgr})"
 
 
 def copy_artifacts(index, source_dir, repo_dir):
@@ -101,7 +130,7 @@ def main():
         )
         return 1
 
-    merged = {(pkg["pkgmgr"], pkg["pkgname"]): pkg for pkg in existing.get("packages", [])}
+    merged = {entry_key(pkg): pkg for pkg in existing.get("packages", [])}
     released = set()
 
     for path in args.inputs:
@@ -120,13 +149,13 @@ def main():
                 # Basename keeps `r/packages/...` portable across the macOS
                 # `/var` -> `/private/var` symlink and the Linux runner.
                 released.add(os.path.join(os.path.basename(repo_dir), "packages", pkg["filename"]))
-            key = (pkg["pkgmgr"], pkg["pkgname"])
+            key = entry_key(pkg)
             previous = merged.get(key)
             if previous and previous.get("pkgver") != pkg["pkgver"]:
-                print(f"note: {key[1]} ({key[0]}): {previous.get('pkgver')} -> {pkg['pkgver']}")
+                print(f"note: {describe(key)}: {previous.get('pkgver')} -> {pkg['pkgver']}")
             merged[key] = pkg
 
-    packages = sorted(merged.values(), key=lambda pkg: (pkg["pkgname"], pkg["pkgmgr"]))
+    packages = sorted(merged.values(), key=lambda pkg: (pkg["pkgname"], pkg["pkgmgr"], pkg["platform"], pkg["arch"]))
     existing["packages"] = packages
     existing["generated_at"] = (
         datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
