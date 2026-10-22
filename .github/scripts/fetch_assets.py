@@ -9,7 +9,8 @@ import tempfile
 import shutil
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from container_metadata import check_downloaded
+from container_metadata import check_downloaded, container_metadata, manifest_dependencies
+from validate_repo import check_job_fallback, job_layout_errors, try_jsonschema
 
 def fetch_json(url):
     print(f"Fetching {url}...")
@@ -26,25 +27,56 @@ def fetch_json(url):
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read().decode())
 
-def download_file(url, path):
+def download_to(url, path, expected_size=None):
+    """Download `url` to `path`, returning (ok, bytes_written, error).
+
+    The file is removed on failure, so a partial download can never be
+    mistaken for a resource. A declared Content-Length (or a size from the
+    GitHub release metadata) is checked before the download is accepted.
+    """
     print(f"Downloading {url} to {path}...")
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    # Use generic UA for general HTTP downloads
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     headers = {'User-Agent': 'Mozilla/5.0 (Pica-CI-Asset-Fetcher)'}
     token = os.environ.get("GITHUB_TOKEN")
-    # Only send token if it's GitHub
     if "github.com" in url and token:
-       headers["Authorization"] = f"token {token}"
-    
+        headers["Authorization"] = f"token {token}"
+
     req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req) as response:
+            declared = response.headers.get("Content-Length")
+            written = 0
             with open(path, 'wb') as out_file:
-                out_file.write(response.read())
-        return True
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    out_file.write(chunk)
+                    written += len(chunk)
+        if declared is not None:
+            try:
+                expected_header = int(declared)
+            except ValueError:
+                expected_header = None
+            if expected_header is not None and written != expected_header:
+                os.remove(path)
+                return False, written, f"truncated download: {written} of {expected_header} bytes"
+        if expected_size is not None and written != expected_size:
+            os.remove(path)
+            return False, written, f"size mismatch: got {written}, expected {expected_size}"
+        return True, written, ""
     except Exception as e:
-        print(f"Failed to download from {url}: {e}")
-        return False
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+        return False, 0, str(e)
+
+def download_file(url, path):
+    ok, _, error = download_to(url, path)
+    if not ok:
+        print(f"Failed to download from {url}: {error}")
+    return ok
 
 def extract_from_zip(zip_path, inner_regex, final_path):
     """
@@ -173,16 +205,40 @@ def fetch_github_assets(pkg_dir, build_config):
 
     return found_any
 
+def http_template_urls(source):
+    """The common URL templates for the http_template provider."""
+    urls = []
+    if "url_template" in source:
+        urls.append(source["url_template"])
+    if "url_templates" in source:
+        urls.extend(source["url_templates"])
+    return urls
+
+
+def http_template_urls_for_arch(source, arch):
+    """The templates one architecture uses.
+
+    An `arch_url_templates` entry replaces the common list for that arch, so a
+    single architecture can fetch a different version without that URL being
+    downloaded into every other architecture's directory. Arches without an
+    entry keep the common list.
+    """
+    arch_templates = source.get("arch_url_templates") or {}
+    if arch in arch_templates:
+        return arch_templates[arch]
+    return http_template_urls(source)
+
+
 def fetch_http_template_assets(pkg_dir, build_config):
     source = build_config.get("source", {})
-    url_templates = []
-    if "url_template" in source:
-        url_templates.append(source["url_template"])
-    if "url_templates" in source:
-        url_templates.extend(source["url_templates"])
+    url_templates = http_template_urls(source)
+    arch_templates = source.get("arch_url_templates") or {}
 
-    if not url_templates:
-        print("Error: 'url_template' or 'url_templates' missing for http_template provider.")
+    if not url_templates and not arch_templates:
+        print(
+            "Error: 'url_template', 'url_templates' or 'arch_url_templates' "
+            "missing for http_template provider."
+        )
         return False
 
     version = source.get("version", "latest")
@@ -191,13 +247,21 @@ def fetch_http_template_assets(pkg_dir, build_config):
         print("Warning: No matrix defined for http_template fetch.")
         return False
 
+    matrix_arches = {m.get("arch") for m in matrix}
+    for arch in arch_templates:
+        if arch not in matrix_arches:
+            print(
+                f"warning: arch_url_templates names {arch!r}, which is not in build.matrix",
+                file=sys.stderr,
+            )
+
     found_any = False
     for m in matrix:
         arch = m.get("arch")
         platform = m.get("platform", "all")
         if not arch: continue
 
-        for url_template in url_templates:
+        for url_template in http_template_urls_for_arch(source, arch):
             url = url_template.replace("{arch}", arch).replace("{version}", version).replace("{platform}", platform)
             filename = url.split("/")[-1]
             backend = build_config.get("mgr", "opkg")
@@ -387,13 +451,875 @@ def unpack_into(dest, strip, includes, rename=None):
     return True
 
 
+# ---------------------------------------------------------------------------
+# Preflight: plan every selected package, fetch all required assets, verify
+# them, and only then let the workflow start pica-pack. The functions below
+# never call pica-pack; the workflow's build step does that after this exits 0.
+
+def preflight_error(pkg, mgr, phase, reason, platform="", arch="", asset="", blocks=True):
+    return {
+        "pkg": pkg,
+        "mgr": mgr,
+        "platform": platform or "",
+        "arch": arch or "",
+        "asset": asset or "",
+        "phase": phase,
+        "reason": reason,
+        "blocks": blocks,
+    }
+
+
+def stage_package(src_dir, stage_dir):
+    """Copy the package's static inputs into a clean staging directory."""
+    if os.path.isdir(stage_dir):
+        shutil.rmtree(stage_dir)
+    os.makedirs(stage_dir)
+    manifest = os.path.join(src_dir, "manifest")
+    if not os.path.isfile(manifest):
+        return False, f"missing manifest in {src_dir}"
+    shutil.copy2(manifest, os.path.join(stage_dir, "manifest"))
+    for name in ("scripts", "root"):
+        source = os.path.join(src_dir, name)
+        if os.path.isdir(source):
+            shutil.copytree(source, os.path.join(stage_dir, name), symlinks=True)
+    return True, ""
+
+
+def static_errors(pkg, mgr, build_json_path, build_config):
+    """Configuration checks that need no network."""
+    errors = []
+
+    def add(reason, platform="", arch="", asset=""):
+        errors.append(preflight_error(pkg, mgr, "static", reason, platform, arch, asset))
+
+    layout = job_layout_errors(build_json_path)
+    if layout is None:
+        add("build.json is not valid JSON")
+        return errors
+    for problem in layout:
+        add(problem)
+
+    schema_path = os.path.join("schema", "ci-job-v1.schema.json")
+    schema_result = try_jsonschema(schema_path, build_json_path) if os.path.isfile(schema_path) else None
+    if schema_result is None:
+        for problem in check_job_fallback(build_json_path):
+            add(problem)
+    else:
+        for problem in schema_result:
+            add(problem)
+        # The JSON Schema sees build.json only; it cannot read the manifest, so
+        # the backend/targets agreement is checked here even when the schema is
+        # available.
+        manifest_path = build_config.get("manifest") or os.path.join("src", mgr, pkg, "manifest")
+        if not os.path.isfile(manifest_path):
+            add(f"manifest not found: {manifest_path}")
+        else:
+            targets = []
+            declares_pkgmgr = False
+            with open(manifest_path, "r", encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if line.startswith("pkgmgr"):
+                        declares_pkgmgr = True
+                    if line.startswith("targets"):
+                        _, _, value = line.partition("=")
+                        targets.extend(part.strip() for part in value.split(",") if part.strip())
+            if declares_pkgmgr:
+                add("manifest declares pkgmgr; the packer writes it. Use targets instead")
+            if not targets:
+                add("manifest has no targets")
+            elif mgr not in targets:
+                add(f"manifest targets {targets} do not include this job's mgr {mgr}")
+
+    matrix = build_config.get("build", {}).get("matrix", [])
+    if not matrix:
+        add("build.matrix must have at least one entry")
+    seen = set()
+    platforms = {}
+    for entry in matrix:
+        platform = entry.get("platform", "all")
+        arch = entry.get("arch")
+        if not arch:
+            add("build.matrix entry is missing arch")
+            continue
+        if (platform, arch) in seen:
+            add(f"build.matrix has a duplicate target {platform}/{arch}", platform, arch)
+        seen.add((platform, arch))
+        if arch in platforms and platforms[arch] != platform:
+            add(f"build.matrix maps {arch} to both {platforms[arch]} and {platform}", platform, arch)
+        platforms[arch] = platform
+
+    source = build_config.get("source", {})
+    provider = source.get("provider")
+    matrix_arches = {entry.get("arch") for entry in matrix if entry.get("arch")}
+
+    if provider == "github":
+        release_cfg = source.get("release", {})
+        tag_regex = (release_cfg.get("tag") or {}).get("regex")
+        if tag_regex:
+            try:
+                re.compile(tag_regex)
+            except re.error as err:
+                add(f"release tag regex does not compile: {err}")
+        assets = release_cfg.get("assets", [])
+        if not assets:
+            add("source.release.assets must not be empty")
+        for asset in assets:
+            name = asset.get("name", "")
+            regex = asset.get("regex")
+            if not regex:
+                add(f"asset {name!r} is missing a regex", asset=name)
+                continue
+            try:
+                compiled = re.compile(regex)
+            except re.error as err:
+                add(f"asset {name!r} regex does not compile: {err}", asset=name)
+                continue
+            inner = asset.get("inner_regex")
+            if inner:
+                try:
+                    re.compile(inner)
+                except re.error as err:
+                    add(f"asset {name!r} inner_regex does not compile: {err}", asset=name)
+            capture = asset.get("capture_to") or {}
+            for key, group in capture.items():
+                if key not in ("arch", "platform"):
+                    add(f"asset {name!r} capture_to has unknown key {key!r}", asset=name)
+                try:
+                    index = int(group)
+                except (TypeError, ValueError):
+                    add(f"asset {name!r} capture_to.{key} is not an integer", asset=name)
+                    continue
+                if index < 1 or index > compiled.groups:
+                    add(f"asset {name!r} capture_to.{key}={group} has no capture group", asset=name)
+            target = asset.get("target") or {}
+            if capture.get("arch") and target.get("platform"):
+                add(
+                    f"asset {name!r} captures arch but fixes platform {target['platform']!r}; "
+                    "the platform would not follow the captured arch",
+                    asset=name,
+                )
+            if len(matrix_arches) > 1 and target and target.get("arch") not in (None, "", "all") and not capture:
+                add(
+                    f"asset {name!r} fixes arch {target['arch']!r} while build.matrix has several arches; "
+                    "use capture_to",
+                    asset=name,
+                )
+    elif provider == "http_template":
+        arch_templates = source.get("arch_url_templates") or {}
+        for arch in arch_templates:
+            if arch not in matrix_arches:
+                add(f"arch_url_templates names {arch!r}, which is not in build.matrix")
+        if not http_template_urls(source) and not arch_templates:
+            add("http_template source has no URL templates")
+        for entry in matrix:
+            arch = entry.get("arch")
+            if arch and not http_template_urls_for_arch(source, arch):
+                add(f"no URL template for matrix arch {arch!r}", arch=arch)
+    elif provider == "tarball":
+        templates = source.get("url_templates") or (
+            [source["url_template"]] if source.get("url_template") else []
+        )
+        if not templates:
+            add("tarball source has no URL templates")
+        if len(matrix) > 1:
+            for template in templates:
+                if "{arch}" not in template:
+                    add(f"tarball URL {template!r} has no {{arch}} but build.matrix has several arches")
+            add(
+                "tarball provider stages every matrix arch into one root/; pica-pack builds one "
+                "artifact per package, so per-arch archives cannot be represented"
+            )
+    return errors
+
+
+def select_github_release(releases, release_cfg):
+    tag_regex = (release_cfg.get("tag") or {}).get("regex")
+    allow_prerelease = release_cfg.get("allow_prerelease", False)
+    for release in releases:
+        if release.get("prerelease") and not allow_prerelease:
+            continue
+        if tag_regex and not re.match(tag_regex, release.get("tag_name", "")):
+            continue
+        return release
+    return None
+
+
+def plan_github_assets(release, build_config, stage, pkg):
+    source = build_config.get("source", {})
+    mgr = build_config.get("mgr", "opkg")
+    matrix = build_config.get("build", {}).get("matrix", [])
+    matrix_arches = [entry.get("arch") for entry in matrix if entry.get("arch")]
+    platform_by_arch = {
+        entry.get("arch"): entry.get("platform", "all") for entry in matrix if entry.get("arch")
+    }
+    requests = []
+    errors = []
+    optional = []
+    skipped = []
+
+    for asset_meta in source.get("release", {}).get("assets", []):
+        name = asset_meta.get("name", "")
+        regex = asset_meta.get("regex", "")
+        capture = asset_meta.get("capture_to") or {}
+        target = asset_meta.get("target") or {}
+        required = asset_meta.get("required", True)
+        inner_regex = asset_meta.get("inner_regex")
+        found_any = False
+        found_arches = set()
+
+        for asset in release.get("assets", []):
+            asset_name = asset.get("name", "")
+            match = re.match(regex, asset_name)
+            if not match:
+                continue
+
+            platform = target.get("platform")
+            arch = target.get("arch")
+            if "arch" in capture:
+                arch = match.group(int(capture["arch"]))
+            if "platform" in capture:
+                platform = match.group(int(capture["platform"]))
+
+            if arch and arch != "all":
+                if arch not in platform_by_arch:
+                    skipped.append(
+                        {"pkg": pkg, "mgr": mgr, "asset": asset_name, "arch": arch,
+                         "reason": "arch is not in build.matrix"}
+                    )
+                    continue
+                if not platform:
+                    platform = platform_by_arch[arch]
+                elif platform != platform_by_arch.get(arch):
+                    errors.append(
+                        preflight_error(
+                            pkg, mgr, "plan",
+                            f"captured platform {platform!r} does not match build.matrix for {arch!r}",
+                            platform, arch, asset_name,
+                        )
+                    )
+                    continue
+
+            platform = platform or "all"
+            arch = arch or "all"
+            if inner_regex and asset_name.endswith(".zip"):
+                final_name = asset_name[:-4] + ".ipk"
+                kind = "zip"
+            else:
+                final_name = asset_name
+                kind = "container"
+            dest = os.path.join(stage, "pkgs", mgr, platform, arch, final_name)
+            requests.append(
+                {
+                    "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
+                    "url": asset.get("browser_download_url", ""), "dest": dest,
+                    "kind": kind, "inner_regex": inner_regex, "asset": asset_name,
+                    "required": required, "expected_size": asset.get("size"),
+                }
+            )
+            found_any = True
+            if arch != "all":
+                found_arches.add(arch)
+
+        if required:
+            if "arch" in capture:
+                for arch in matrix_arches:
+                    if arch not in found_arches:
+                        errors.append(
+                            preflight_error(
+                                pkg, mgr, "plan",
+                                f"required asset {regex!r} has no match for matrix arch {arch!r}",
+                                platform_by_arch.get(arch, ""), arch, name,
+                            )
+                        )
+            elif not found_any:
+                errors.append(
+                    preflight_error(pkg, mgr, "plan", f"required asset {regex!r} was not found", asset=name)
+                )
+        elif "arch" in capture:
+            for arch in matrix_arches:
+                if arch not in found_arches:
+                    optional.append(
+                        {"pkg": pkg, "mgr": mgr, "asset": name, "arch": arch,
+                         "reason": "optional asset not found for this arch"}
+                    )
+        elif not found_any:
+            optional.append(
+                {"pkg": pkg, "mgr": mgr, "asset": name, "reason": "optional asset not found"}
+            )
+
+    return requests, errors, optional, skipped
+
+
+def plan_github_package(source, build_config, stage, pkg):
+    repo = source.get("repo")
+    if not repo:
+        return [], [preflight_error(pkg, build_config.get("mgr", "opkg"), "plan", "source.repo is missing")], [], []
+    api_url = f"https://api.github.com/repos/{repo}/releases"
+    try:
+        releases = fetch_json(api_url)
+    except Exception as err:
+        return [], [
+            preflight_error(pkg, build_config.get("mgr", "opkg"), "release", f"could not list releases: {err}")
+        ], [], []
+    release = select_github_release(releases, source.get("release", {}))
+    if release is None:
+        return [], [
+            preflight_error(pkg, build_config.get("mgr", "opkg"), "release", "no matching release")
+        ], [], []
+    print(f"Matched GitHub release: {release.get('tag_name')}")
+    return plan_github_assets(release, build_config, stage, pkg)
+
+
+def plan_http_assets(build_config, stage, pkg):
+    source = build_config.get("source", {})
+    mgr = build_config.get("mgr", "opkg")
+    matrix = build_config.get("build", {}).get("matrix", [])
+    version = source.get("version", "latest")
+    requests = []
+    errors = []
+
+    for entry in matrix:
+        platform = entry.get("platform", "all")
+        arch = entry.get("arch")
+        if not arch:
+            continue
+        templates = http_template_urls_for_arch(source, arch)
+        if not templates:
+            errors.append(
+                preflight_error(
+                    pkg, mgr, "plan", f"no URL template for matrix arch {arch!r}", platform, arch
+                )
+            )
+            continue
+        for template in templates:
+            url = (
+                template.replace("{arch}", arch)
+                .replace("{version}", version)
+                .replace("{platform}", platform)
+            )
+            filename = url.split("?")[0].rsplit("/", 1)[-1]
+            if not filename:
+                errors.append(
+                    preflight_error(pkg, mgr, "plan", "URL has no filename", platform, arch, url)
+                )
+                continue
+            dest = os.path.join(stage, "pkgs", mgr, platform, arch, filename)
+            requests.append(
+                {
+                    "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
+                    "url": url, "dest": dest, "kind": "container", "asset": filename,
+                    "required": True, "expected_size": None,
+                }
+            )
+    return requests, errors, [], []
+
+
+def plan_tarball_assets(build_config, stage, pkg):
+    source = build_config.get("source", {})
+    mgr = build_config.get("mgr", "opkg")
+    matrix = build_config.get("build", {}).get("matrix", [])
+    templates = source.get("url_templates") or (
+        [source["url_template"]] if source.get("url_template") else []
+    )
+    requests = []
+    errors = []
+
+    if len(matrix) > 1:
+        errors.append(
+            preflight_error(
+                pkg, mgr, "plan",
+                "tarball provider cannot represent several matrix arches in one root/",
+            )
+        )
+        return requests, errors, [], []
+
+    for entry in matrix:
+        platform = entry.get("platform", "all")
+        arch = entry.get("arch", "all")
+        chosen = next((template for template in templates if "{arch}" in template), None)
+        if chosen is None and len(matrix) == 1 and templates:
+            chosen = templates[0]
+        if chosen is None:
+            errors.append(
+                preflight_error(pkg, mgr, "plan", "no tarball URL for this matrix arch", platform, arch)
+            )
+            continue
+        mapped = (source.get("arch_map") or {}).get(arch, arch)
+        url = (
+            chosen.replace("{platform}", str(platform))
+            .replace("{arch}", str(mapped))
+            .replace("{version}", str(source.get("version", "")))
+        )
+        requests.append(
+            {
+                "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
+                "url": url, "dest": stage, "kind": "tarball", "asset": url.rsplit("/", 1)[-1],
+                "required": True, "expected_size": None,
+                "extract": {
+                    "strip": source.get("strip_components", 0),
+                    "includes": source.get("include") or [],
+                    "rename": source.get("rename"),
+                    "dest_subdir": str(source.get("dest_subdir", "")).strip("/"),
+                },
+            }
+        )
+    return requests, errors, [], []
+
+
+def dedupe_requests(requests, pkg, mgr):
+    errors = []
+    seen = {}
+    result = []
+    for request in requests:
+        dest = request["dest"]
+        if dest in seen:
+            if seen[dest] != request["url"]:
+                errors.append(
+                    preflight_error(
+                        pkg, mgr, "plan",
+                        f"two resources write the same path: {seen[dest]} and {request['url']}",
+                        request["platform"], request["arch"], request["asset"],
+                    )
+                )
+            continue
+        seen[dest] = request["url"]
+        result.append(request)
+    return result, errors
+
+
+def plan_package(src_dir, stage_root):
+    parts = os.path.normpath(src_dir).split(os.sep)
+    if len(parts) < 3 or parts[-3] != "src":
+        return {
+            "source": src_dir, "stage": "", "mgr": "", "pkg": src_dir,
+            "requests": [], "errors": [
+                preflight_error(src_dir, "", "static", "package dir must be src/<mgr>/<pkg>")
+            ],
+            "optional": [], "skipped": [], "build_config": None,
+        }
+    mgr, pkg = parts[-2], parts[-1]
+    stage = os.path.join(stage_root, mgr, pkg)
+    plan = {
+        "source": src_dir, "stage": stage, "mgr": mgr, "pkg": pkg,
+        "requests": [], "errors": [], "optional": [], "skipped": [], "build_config": None,
+    }
+
+    build_json = os.path.join("ci", mgr, pkg, "build.json")
+    if not os.path.isfile(build_json):
+        plan["errors"].append(preflight_error(pkg, mgr, "static", f"missing {build_json}"))
+        return plan
+    try:
+        with open(build_json, "r", encoding="utf-8") as handle:
+            build_config = json.load(handle)
+    except (OSError, json.JSONDecodeError) as err:
+        plan["errors"].append(preflight_error(pkg, mgr, "static", f"cannot read {build_json}: {err}"))
+        return plan
+    plan["build_config"] = build_config
+
+    plan["errors"].extend(static_errors(pkg, mgr, build_json, build_config))
+    if plan["errors"]:
+        return plan
+
+    ok, error = stage_package(src_dir, stage)
+    if not ok:
+        plan["errors"].append(preflight_error(pkg, mgr, "stage", error))
+        return plan
+
+    provider = build_config.get("source", {}).get("provider")
+    if provider == "github":
+        requests, errors, optional, skipped = plan_github_package(
+            build_config.get("source", {}), build_config, stage, pkg
+        )
+    elif provider == "http_template":
+        requests, errors, optional, skipped = plan_http_assets(build_config, stage, pkg)
+    elif provider == "tarball":
+        requests, errors, optional, skipped = plan_tarball_assets(build_config, stage, pkg)
+    else:
+        requests, errors, optional, skipped = [], [
+            preflight_error(pkg, mgr, "plan", f"unknown provider {provider!r}")
+        ], [], []
+
+    requests, dedupe_errors = dedupe_requests(requests, pkg, mgr)
+    plan["requests"] = requests
+    plan["errors"].extend(errors)
+    plan["errors"].extend(dedupe_errors)
+    plan["optional"].extend(optional)
+    plan["skipped"].extend(skipped)
+    return plan
+
+
+def unpack_tarball_request(download_path, request, stage):
+    """Unpack one tarball request into the stage's root/ and return written files."""
+    extract = request.get("extract") or {}
+    work = tempfile.mkdtemp(prefix="pica-unpack-", dir=os.path.join(stage, ".pica-downloads"))
+    download = os.path.join(work, os.path.basename(download_path))
+    os.makedirs(os.path.dirname(download), exist_ok=True)
+    shutil.move(download_path, download)
+    try:
+        if not unpack_into(
+            work, extract.get("strip", 0), extract.get("includes") or [], extract.get("rename")
+        ):
+            shutil.rmtree(work, ignore_errors=True)
+            return None
+        dest_root = os.path.join(stage, "root", (extract.get("dest_subdir") or "").strip("/"))
+        os.makedirs(dest_root, exist_ok=True)
+        written = []
+        for root, _, files in os.walk(work):
+            for filename in files:
+                path = os.path.join(root, filename)
+                relative = os.path.relpath(path, work)
+                target = os.path.join(dest_root, relative)
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                shutil.move(path, target)
+                written.append(target)
+        return written
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def execute_requests(plan):
+    """Download every request into the stage, returning (errors, optional)."""
+    errors = []
+    optional = []
+    written = {}
+    stage = plan["stage"]
+    temp_root = os.path.join(stage, ".pica-downloads")
+    os.makedirs(temp_root, exist_ok=True)
+
+    for index, request in enumerate(plan["requests"]):
+        filename = os.path.basename(request["url"].split("?")[0]) or f"asset-{index}"
+        temp = os.path.join(temp_root, f"{index}-{filename}")
+        ok, size, error = download_to(request["url"], temp, request.get("expected_size"))
+        if not ok:
+            entry = preflight_error(
+                request["pkg"], request["mgr"], "download", error,
+                request["platform"], request["arch"], request["asset"],
+            )
+            (errors if request["required"] else optional).append(entry)
+            continue
+        if size <= 0:
+            entry = preflight_error(
+                request["pkg"], request["mgr"], "download", "empty download",
+                request["platform"], request["arch"], request["asset"],
+            )
+            (errors if request["required"] else optional).append(entry)
+            continue
+
+        try:
+            if request["kind"] in ("container", "zip"):
+                dest = request["dest"]
+                if os.path.exists(dest):
+                    errors.append(
+                        preflight_error(
+                            request["pkg"], request["mgr"], "stage",
+                            f"resource collision at {dest}",
+                            request["platform"], request["arch"], request["asset"],
+                        )
+                    )
+                    os.remove(temp)
+                    continue
+                if request["kind"] == "zip":
+                    if not extract_from_zip(temp, request.get("inner_regex"), dest):
+                        errors.append(
+                            preflight_error(
+                                request["pkg"], request["mgr"], "stage",
+                                "no inner file matched inner_regex",
+                                request["platform"], request["arch"], request["asset"],
+                            )
+                        )
+                        os.remove(temp)
+                        continue
+                    os.remove(temp)
+                    if not os.path.isfile(dest) or os.path.getsize(dest) <= 0:
+                        errors.append(
+                            preflight_error(
+                                request["pkg"], request["mgr"], "verify",
+                                "extracted file is missing or empty",
+                                request["platform"], request["arch"], request["asset"],
+                            )
+                        )
+                        continue
+                else:
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    shutil.move(temp, dest)
+                request["ok"] = True
+                request["path"] = dest
+                written[dest] = request["url"]
+            elif request["kind"] == "tarball":
+                files = unpack_tarball_request(temp, request, stage)
+                if files is None:
+                    errors.append(
+                        preflight_error(
+                            request["pkg"], request["mgr"], "stage",
+                            "tarball could not be unpacked",
+                            request["platform"], request["arch"], request["asset"],
+                        )
+                    )
+                    continue
+                for path in files:
+                    previous = written.get(path)
+                    if previous is not None and previous != request["url"]:
+                        errors.append(
+                            preflight_error(
+                                request["pkg"], request["mgr"], "stage",
+                                f"two resources wrote {path}",
+                                request["platform"], request["arch"], request["asset"],
+                            )
+                        )
+                    written[path] = request["url"]
+                request["ok"] = True
+                request["files"] = files
+            else:
+                errors.append(
+                    preflight_error(
+                        request["pkg"], request["mgr"], "stage",
+                        f"unknown request kind {request['kind']!r}",
+                        request["platform"], request["arch"], request["asset"],
+                    )
+                )
+                os.remove(temp)
+        except OSError as err:
+            errors.append(
+                preflight_error(
+                    request["pkg"], request["mgr"], "stage", f"staging failed: {err}",
+                    request["platform"], request["arch"], request["asset"],
+                )
+            )
+            try:
+                os.remove(temp)
+            except OSError:
+                pass
+
+    shutil.rmtree(temp_root, ignore_errors=True)
+    plan["written"] = written
+    return errors, optional
+
+
+def verify_plan(plan):
+    """Check downloaded containers against the manifest and their target arch."""
+    errors = []
+    unverified = []
+    verified = 0
+    stage = plan["stage"]
+    manifest = os.path.join(stage, "manifest")
+    declared = manifest_dependencies(manifest)
+    known = declared["app"] | declared["base"] | declared["kmod"]
+
+    for request in plan["requests"]:
+        if not request.get("ok"):
+            continue
+        if request["kind"] == "tarball":
+            verified += 1
+            continue
+        path = request.get("path")
+        if not path or not os.path.isfile(path):
+            continue
+        if os.path.getsize(path) <= 0:
+            errors.append(
+                preflight_error(
+                    request["pkg"], request["mgr"], "verify", "downloaded file is empty",
+                    request["platform"], request["arch"], request["asset"],
+                )
+            )
+            continue
+        metadata = container_metadata(path)
+        if metadata is None:
+            unverified.append(
+                {
+                    "pkg": request["pkg"], "mgr": request["mgr"],
+                    "platform": request["platform"], "arch": request["arch"],
+                    "asset": request["asset"], "path": path,
+                    "reason": "container metadata is unreadable (ADB or unsupported format)",
+                }
+            )
+            continue
+        package = metadata.get("package")
+        architecture = metadata.get("architecture")
+        if package and known and package not in known:
+            errors.append(
+                preflight_error(
+                    request["pkg"], request["mgr"], "verify",
+                    f"container installs as {package!r}, which the manifest does not declare",
+                    request["platform"], request["arch"], request["asset"],
+                )
+            )
+        if architecture is None:
+            unverified.append(
+                {
+                    "pkg": request["pkg"], "mgr": request["mgr"],
+                    "platform": request["platform"], "arch": request["arch"],
+                    "asset": request["asset"], "path": path,
+                    "reason": "container declares no Architecture",
+                }
+            )
+            continue
+        if request["arch"] != "all" and architecture not in ("all", request["arch"]):
+            errors.append(
+                preflight_error(
+                    request["pkg"], request["mgr"], "verify",
+                    f"container architecture is {architecture!r}, expected {request['arch']!r} or all",
+                    request["platform"], request["arch"], request["asset"],
+                )
+            )
+            continue
+        verified += 1
+    return errors, unverified, verified
+
+
+def preflight(package_dirs, stage_root, plan_output=None):
+    """Run the global preflight; never calls pica-pack."""
+    stage_root = os.path.abspath(stage_root)
+    if not package_dirs:
+        print("Preflight summary:")
+        print("- Packages checked: 0")
+        print("- Required assets passed: 0")
+        print("- Optional assets missing: 0")
+        print("- Validation failures: 0")
+        print("- Packages blocked: 0")
+        print("No packages selected; nothing to preflight.")
+        return 0
+
+    if os.path.isdir(stage_root):
+        shutil.rmtree(stage_root)
+    os.makedirs(stage_root, exist_ok=True)
+
+    checked = 0
+    required_passed = 0
+    errors = []
+    optional = []
+    skipped = []
+    unverified = []
+    stages = []
+
+    for src_dir in package_dirs:
+        checked += 1
+        plan = plan_package(src_dir, stage_root)
+        print(f"Preflight {src_dir}: {plan['mgr']}/{plan['pkg']}")
+        errors.extend(plan["errors"])
+        optional.extend(plan["optional"])
+        skipped.extend(plan["skipped"])
+        if plan["errors"]:
+            print(f"  blocked by {len(plan['errors'])} configuration/planning error(s)")
+            continue
+
+        download_errors, download_optional = execute_requests(plan)
+        errors.extend(download_errors)
+        optional.extend(download_optional)
+        verify_errors, verify_unverified, verified = verify_plan(plan)
+        errors.extend(verify_errors)
+        unverified.extend(verify_unverified)
+        required_passed += sum(
+            1 for request in plan["requests"] if request.get("ok") and request["required"]
+        )
+        if not download_errors and not verify_errors:
+            stages.append({"source": src_dir, "stage": plan["stage"], "mgr": plan["mgr"], "pkg": plan["pkg"]})
+            print(f"  staged at {plan['stage']} ({verified} verified asset(s))")
+        else:
+            print(f"  blocked by {len(download_errors) + len(verify_errors)} resource/verification error(s)")
+
+    blocked = {error["pkg"] for error in errors if error.get("blocks", True)}
+    summary = {
+        "checked": checked,
+        "required_passed": required_passed,
+        "optional_missing": len(optional),
+        "validation_failures": len(errors),
+        "packages_blocked": len(blocked),
+        "unverified": len(unverified),
+        "stages": stages,
+    }
+
+    for error in errors:
+        location = "/".join(part for part in (error["platform"], error["arch"]) if part)
+        print(
+            f"error: [{error['pkg']}/{error['mgr']} {location} {error['phase']}] "
+            f"{error['asset']}: {error['reason']}",
+            file=sys.stderr,
+        )
+    for item in optional:
+        print(f"warning: optional asset missing for {item['pkg']}: {item.get('asset', '')}", file=sys.stderr)
+    for item in skipped:
+        print(f"note: skipped {item['pkg']}/{item['mgr']} {item['asset']} ({item['reason']})")
+    for item in unverified:
+        print(
+            f"warning: {item['pkg']}/{item['mgr']} {item['asset']}: {item['reason']}; not verified",
+            file=sys.stderr,
+        )
+
+    print("Preflight summary:")
+    print(f"- Packages checked: {checked}")
+    print(f"- Required assets passed: {required_passed}")
+    print(f"- Optional assets missing: {len(optional)}")
+    print(f"- Validation failures: {len(errors)}")
+    print(f"- Packages blocked: {len(blocked)}")
+    print(f"- Assets unverified: {len(unverified)}")
+
+    if plan_output:
+        os.makedirs(os.path.dirname(os.path.abspath(plan_output)) or ".", exist_ok=True)
+        with open(plan_output, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "summary": summary,
+                    "packages": stages,
+                    "errors": errors,
+                    "optional_missing": optional,
+                    "skipped": skipped,
+                    "unverified": unverified,
+                },
+                handle,
+                indent=2,
+                ensure_ascii=False,
+            )
+            handle.write("\n")
+
+    if errors:
+        print("BUILD PHASE NOT STARTED")
+        return 1
+    print(f"Preflight complete; {len(stages)} package(s) staged.")
+    return 0
+
+
 def main():
-    if len(sys.argv) < 2:
+    args = sys.argv[1:]
+    if "--preflight" in args:
+        stage_root = None
+        plan_output = None
+        packages = []
+        index = 0
+        while index < len(args):
+            arg = args[index]
+            if arg == "--preflight":
+                index += 1
+            elif arg == "--stage-root":
+                if index + 1 >= len(args):
+                    print("error: --stage-root requires a directory", file=sys.stderr)
+                    sys.exit(2)
+                stage_root = args[index + 1]
+                index += 2
+            elif arg == "--plan-output":
+                if index + 1 >= len(args):
+                    print("error: --plan-output requires a file", file=sys.stderr)
+                    sys.exit(2)
+                plan_output = args[index + 1]
+                index += 2
+            else:
+                packages.append(arg)
+                index += 1
+        if not stage_root:
+            print(
+                "Usage: fetch_assets.py --preflight --stage-root DIR "
+                "[--plan-output FILE] <src/mgr/pkg>...",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        sys.exit(preflight(packages, stage_root, plan_output))
+
+    if not args:
         print("Usage: fetch_assets.py <package_dir> [build_json_path]")
         sys.exit(1)
-    
-    pkg_dir = sys.argv[1]
-    build_json_path = sys.argv[2] if len(sys.argv) > 2 else os.path.join(pkg_dir, "build.json")
+
+    pkg_dir = args[0]
+    build_json_path = args[1] if len(args) > 1 else os.path.join(pkg_dir, "build.json")
     
     if not os.path.exists(build_json_path):
         print(f"Skipping: {build_json_path} not found.")

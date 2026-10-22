@@ -5,27 +5,11 @@
   "enabled": true,
   "manifest": "src/opkg/cattools/manifest",
   "source": {
-    "provider": "github",
-    "repo": "miaoermua/cattools",
-    "release": {
-      "tag": {
-        "mode": "regex",
-        "regex": "^v?[0-9.]+$"
-      },
-      "allow_prerelease": false,
-      "assets": [
-        {
-          "name": "cattools-script",
-          "role": "app",
-          "regex": "^cattools(-.*)?\\.zip$",
-          "required": true,
-          "target": {
-            "platform": "all",
-            "arch": "all"
-          }
-        }
-      ]
-    }
+    "provider": "tarball",
+    "version": "a5d094c852bb31a5d266f6a0ac8946ded8a60f3f",
+    "url_template": "https://raw.githubusercontent.com/miaoermua/cattools/{version}/cattools.sh",
+    "rename": "cattools.sh",
+    "dest_subdir": "usr/lib/pica/src/cattools"
   },
   "versioning": {
     "pkgver": {

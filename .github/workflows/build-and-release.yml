@@ -88,6 +88,9 @@ jobs:
       - name: Test change detection mapping
         run: python3 .github/scripts/test_changed_packages.py
 
+      - name: Test asset source mapping
+        run: python3 .github/scripts/test_fetch_assets.py
+
       - name: Validate repository configuration
         run: |
           # Catches bad mgr/targets/include_dirs before a build wastes time.
@@ -101,38 +104,42 @@ jobs:
           python3 -m py_compile .github/scripts/*.py
           python3 .github/scripts/validate_repo.py --check-pairs
 
-      - name: Build Changed Packages
+      - name: Preflight and stage all assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STAGE_ROOT: ${{ runner.temp }}/pica-stage
         run: |
+          set -euo pipefail
+          rm -rf "$STAGE_ROOT"
+          python3 .github/scripts/fetch_assets.py --preflight \
+            --stage-root "$STAGE_ROOT" \
+            --plan-output "$STAGE_ROOT/plan.json" \
+            ${{ steps.detect.outputs.packages }}
+
+      - name: Build Staged Packages
+        run: |
+          set -euo pipefail
           mkdir -p build_output
           DIRS_TO_BUILD="${{ steps.detect.outputs.packages }}"
+          STAGE_ROOT="${{ runner.temp }}/pica-stage"
 
           if [ -z "$DIRS_TO_BUILD" ]; then
             echo "No packages selected for rebuild."
+            exit 0
           fi
 
           for dir in $DIRS_TO_BUILD; do
             PKG_MGR=$(basename "$(dirname "$dir")")
             PKG_ID=$(basename "$dir")
-            BUILD_JSON="ci/$PKG_MGR/$PKG_ID/build.json"
+            STAGE="$STAGE_ROOT/$PKG_MGR/$PKG_ID"
 
-            if [ ! -f "$dir/manifest" ]; then
-              echo "error: selected package $dir has no manifest" >&2
-              exit 1
-            fi
-            if [ ! -f "$BUILD_JSON" ]; then
-              echo "error: selected package $dir has no $BUILD_JSON" >&2
+            if [ ! -f "$STAGE/manifest" ]; then
+              echo "error: preflight did not stage $dir at $STAGE" >&2
               exit 1
             fi
 
-            echo "Fetching assets for $PKG_ID using $BUILD_JSON..."
-            python3 .github/scripts/fetch_assets.py "$dir" "$BUILD_JSON"
-
-            echo "Building package in $dir..."
-            # pica-pack reads `targets` from the manifest; the directory decides
-            # nothing, and every backend it declares is built.
-            pica-pack build "$dir" --outdir build_output
+            echo "Building package in $STAGE..."
+            pica-pack build "$STAGE" --outdir build_output
           done
 
       - name: Generate Repository Index

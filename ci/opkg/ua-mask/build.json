@@ -17,7 +17,7 @@
         {
           "name": "ua-mask-pkg",
           "role": "app",
-          "regex": "^UAmask_[0-9].*-r?[0-9]+-?(.*)\\.ipk$",
+          "regex": "^UAmask_[0-9].*-r?[0-9]+[_-]([A-Za-z0-9_+.-]+)\\.ipk$",
           "required": true,
           "capture_to": {
             "arch": 1
@@ -35,20 +35,12 @@
   "build": {
     "matrix": [
       {
-        "platform": "amd64",
-        "arch": "x86_64"
-      },
-      {
         "platform": "arm64",
         "arch": "aarch64_generic"
       },
       {
         "platform": "arm64",
         "arch": "aarch64_cortex-a53"
-      },
-      {
-        "platform": "mipsel",
-        "arch": "mipsel_24kc"
       }
     ],
     "include_dirs": [
