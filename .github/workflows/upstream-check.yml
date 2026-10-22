@@ -1,0 +1,67 @@
+name: Pica Upstream Check
+
+on:
+  schedule:
+    # Lightweight metadata and reachability check. It never downloads packages.
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pica-upstream-check
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python requirements
+        run: python -m pip install jsonschema
+
+      - name: Compare manifest versions with upstream releases
+        run: python3 .github/scripts/check_versions.py --online
+
+      - name: Plan and probe every configured resource
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mapfile -t PACKAGES < <(
+            find src -mindepth 2 -maxdepth 2 -name manifest -printf '%h\n' | sort
+          )
+          # An unreachable upstream is reported, not failed: a rate limit on a
+          # scheduled run says nothing about the repository's health, and the
+          # summary below lists it separately so it stays visible.
+          python3 .github/scripts/fetch_assets.py --plan --probe --allow-unreachable \
+            --stage-root "$RUNNER_TEMP/pica-upstream-stage" \
+            --plan-output "$RUNNER_TEMP/pica-upstream-plan.json" \
+            "${PACKAGES[@]}"
+
+      - name: Summarize probe results
+        if: always()
+        run: |
+          if [ ! -f "$RUNNER_TEMP/pica-upstream-plan.json" ]; then
+            echo "No plan was written." >&2
+            exit 1
+          fi
+          python3 -c 'import json,sys,collections; p=json.load(open(sys.argv[1],encoding="utf-8")); s=p.get("summary",{}); print("Upstream plan summary:"); [print(f"- {k}: {s.get(k,0)}") for k in ("checked","packages_planned","requests","validation_failures","packages_blocked")]; c=collections.Counter((r.get("probe") or {}).get("status","unprobed") for pkg in p.get("packages",[]) for r in pkg.get("requests",[])); print("- probe:", dict(sorted(c.items()))); [print(f"warning: {w}",file=sys.stderr) for w in p.get("probe_warnings",[])]' "$RUNNER_TEMP/pica-upstream-plan.json"
+
+      - name: Upload plan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pica-upstream-plan
+          path: ${{ runner.temp }}/pica-upstream-plan.json
+          if-no-files-found: warn
+          retention-days: 7

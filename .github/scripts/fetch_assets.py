@@ -1,7 +1,11 @@
+import concurrent.futures
+import hashlib
 import os
 import sys
 import json
 import re
+import time
+import urllib.error
 import urllib.request
 import tarfile
 import zipfile
@@ -14,95 +18,240 @@ from container_metadata import (
     container_metadata,
     declares_package,
     manifest_dependencies,
+    manifest_pkgver,
+    version_matches,
 )
 from validate_repo import check_job_fallback, job_layout_errors, try_jsonschema
 
-def fetch_json(url):
+_JSON_CACHE = {}
+
+
+def _retryable(error):
+    """Whether a failed request is worth retrying.
+
+    A 404 is evidence that the resource is not there; retrying it wastes a
+    request and hides the real problem. 429 and 5xx are transient, and a
+    timeout says nothing about the resource.
+    """
+    if isinstance(error, urllib.error.HTTPError):
+        return error.code in (408, 429, 500, 502, 503, 504)
+    return isinstance(error, (urllib.error.URLError, TimeoutError, OSError))
+
+
+def _sleep_before_retry(attempt):
+    time.sleep(min(2 ** attempt, 8))
+
+
+def fetch_json(url, attempts=3):
+    """Fetch JSON, deduplicating identical URLs within one process.
+
+    Several jobs share a GitHub repository (ua3f, ua-mask, the themes), so the
+    same release list would otherwise be requested once per job. The cache is
+    only for one run: a release list is metadata, not a build input.
+    """
+    if url in _JSON_CACHE:
+        return _JSON_CACHE[url]
     print(f"Fetching {url}...")
     headers = {
         'User-Agent': 'Pica-CI-Asset-Fetcher',
         'Accept': 'application/vnd.github.v3+json'
     }
-    # Pass GITHUB_TOKEN if available to avoid rate limits
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"token {token}"
-        
-    req = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(req) as response:
-        return json.loads(response.read().decode())
 
-def download_to(url, path, expected_size=None):
+    last_error = None
+    for attempt in range(attempts):
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                value = json.loads(response.read().decode())
+            _JSON_CACHE[url] = value
+            return value
+        except Exception as error:
+            last_error = error
+            if not _retryable(error) or attempt + 1 >= attempts:
+                raise
+            _sleep_before_retry(attempt)
+    raise last_error
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _cache_paths(cache_dir, url):
+    key = hashlib.sha256(url.encode("utf-8")).hexdigest()
+    return os.path.join(cache_dir, key + ".bin"), os.path.join(cache_dir, key + ".json")
+
+
+def _cache_load(cache_dir, url, path, expected_size, expected_sha256):
+    """Copy a verified cache entry to `path`, or return False.
+
+    The metadata is checked before the bytes are trusted: a file whose name
+    happens to match is not evidence that its content is the requested asset.
+    """
+    data_path, meta_path = _cache_paths(cache_dir, url)
+    if not (os.path.isfile(data_path) and os.path.isfile(meta_path)):
+        return False
+    try:
+        with open(meta_path, "r", encoding="utf-8") as handle:
+            meta = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return False
+    if meta.get("url") != url:
+        return False
+    if expected_size is not None and meta.get("size") != expected_size:
+        return False
+    if expected_sha256 and meta.get("sha256") != expected_sha256:
+        return False
+    if sha256_file(data_path) != meta.get("sha256"):
+        return False
+    shutil.copyfile(data_path, path)
+    print(f"Cache hit: {url}")
+    return True
+
+
+def _cache_remove(cache_dir, url):
+    if not cache_dir:
+        return
+    data_path, meta_path = _cache_paths(cache_dir, url)
+    for path in (data_path, meta_path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _cache_store(cache_dir, url, path, size, digest):
+    os.makedirs(cache_dir, exist_ok=True)
+    data_path, meta_path = _cache_paths(cache_dir, url)
+    tmp_data = data_path + ".tmp"
+    tmp_meta = meta_path + ".tmp"
+    shutil.copyfile(path, tmp_data)
+    with open(tmp_meta, "w", encoding="utf-8") as handle:
+        json.dump({"url": url, "size": size, "sha256": digest}, handle)
+    os.replace(tmp_data, data_path)
+    os.replace(tmp_meta, meta_path)
+
+
+def download_to(url, path, expected_size=None, expected_sha256=None, cache_dir=None, attempts=3):
     """Download `url` to `path`, returning (ok, bytes_written, error).
 
     The file is removed on failure, so a partial download can never be
     mistaken for a resource. A declared Content-Length (or a size from the
     GitHub release metadata) is checked before the download is accepted.
+    Network errors and 429/5xx are retried; 404 is not. A cache entry is
+    trusted only after its URL, size and SHA-256 have been checked.
     """
-    print(f"Downloading {url} to {path}...")
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    if cache_dir:
+        try:
+            if _cache_load(cache_dir, url, path, expected_size, expected_sha256):
+                return True, os.path.getsize(path), ""
+        except OSError as error:
+            print(f"warning: asset cache read failed: {error}")
+
     headers = {'User-Agent': 'Mozilla/5.0 (Pica-CI-Asset-Fetcher)'}
     token = os.environ.get("GITHUB_TOKEN")
     if "github.com" in url and token:
         headers["Authorization"] = f"token {token}"
 
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        with urllib.request.urlopen(req) as response:
-            declared = response.headers.get("Content-Length")
-            written = 0
-            with open(path, 'wb') as out_file:
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    out_file.write(chunk)
-                    written += len(chunk)
-        if declared is not None:
-            try:
-                expected_header = int(declared)
-            except ValueError:
-                expected_header = None
-            if expected_header is not None and written != expected_header:
-                os.remove(path)
-                return False, written, f"truncated download: {written} of {expected_header} bytes"
-        if expected_size is not None and written != expected_size:
-            os.remove(path)
-            return False, written, f"size mismatch: got {written}, expected {expected_size}"
-        return True, written, ""
-    except Exception as e:
+    last_error = ""
+    for attempt in range(attempts):
+        print(f"Downloading {url} to {path}...")
         try:
-            os.remove(path)
-        except OSError:
-            pass
-        return False, 0, str(e)
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=60) as response:
+                declared = response.headers.get("Content-Length")
+                written = 0
+                with open(path, 'wb') as out_file:
+                    while True:
+                        chunk = response.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        out_file.write(chunk)
+                        written += len(chunk)
+            if declared is not None:
+                try:
+                    expected_header = int(declared)
+                except ValueError:
+                    expected_header = None
+                if expected_header is not None and written != expected_header:
+                    os.remove(path)
+                    last_error = f"truncated download: {written} of {expected_header} bytes"
+                    if attempt + 1 < attempts:
+                        _sleep_before_retry(attempt)
+                        continue
+                    return False, written, last_error
+            if expected_size is not None and written != expected_size:
+                os.remove(path)
+                return False, written, f"size mismatch: got {written}, expected {expected_size}"
+            digest = sha256_file(path)
+            if expected_sha256 and digest != expected_sha256:
+                os.remove(path)
+                last_error = f"sha256 mismatch: got {digest}, expected {expected_sha256}"
+                if attempt + 1 < attempts:
+                    _sleep_before_retry(attempt)
+                    continue
+                return False, written, last_error
+            if cache_dir:
+                try:
+                    _cache_store(cache_dir, url, path, written, digest)
+                except OSError as error:
+                    print(f"warning: asset cache write failed: {error}")
+            return True, written, ""
+        except Exception as error:
+            last_error = str(error)
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+            if not _retryable(error) or attempt + 1 >= attempts:
+                return False, 0, last_error
+            _sleep_before_retry(attempt)
+    return False, 0, last_error
 
-def download_file(url, path):
-    ok, _, error = download_to(url, path)
+
+def download_file(url, path, **kwargs):
+    ok, _, error = download_to(url, path, **kwargs)
     if not ok:
         print(f"Failed to download from {url}: {error}")
     return ok
 
-def extract_from_zip(zip_path, inner_regex, final_path):
+def extract_all_from_zip(zip_path, inner_regex, dest_dir):
     """
-    Download a zip, find a file inside matching inner_regex, and move it to final_path.
+    Extract every file inside a zip that matches inner_regex into dest_dir.
+
+    A release zip can carry several IPKs that belong to one architecture: the
+    core package, the LuCI app and its translations. Extracting only the first
+    match silently drops the rest, which is how an EasyTier artifact ended up
+    with the 27 KB LuCI app and neither the 14 MB core nor the translation.
     """
-    print(f"Extracting matching '{inner_regex}' from {zip_path}...")
+    print(f"Extracting all files matching '{inner_regex}' from {zip_path}...")
+    written = []
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(tmp_dir)
+                os.makedirs(dest_dir, exist_ok=True)
                 for root, _, files in os.walk(tmp_dir):
                     for f in files:
-                        if re.search(inner_regex, f):
-                            src = os.path.join(root, f)
-                            os.makedirs(os.path.dirname(final_path), exist_ok=True)
-                            shutil.move(src, final_path)
-                            print(f"Successfully extracted to {final_path}")
-                            return True
+                        if not re.search(inner_regex, f):
+                            continue
+                        src = os.path.join(root, f)
+                        target = os.path.join(dest_dir, os.path.basename(f))
+                        shutil.move(src, target)
+                        written.append(target)
+                        print(f"Successfully extracted to {target}")
     except Exception as e:
         print(f"Extraction failed: {e}")
-    return False
+        return None
+    return sorted(written)
 
 def fetch_github_assets(pkg_dir, build_config):
     source = build_config.get("source", {})
@@ -187,15 +336,10 @@ def fetch_github_assets(pkg_dir, build_config):
                 if inner_regex and a["name"].endswith(".zip"):
                     with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp_zip:
                         zip_tmp_path = tmp_zip.name
-                    
+
                     if download_file(a["browser_download_url"], zip_tmp_path):
-                        # Determine final filename from inner regex or a default
-                        final_filename = a["name"].replace(".zip", ".ipk") # Guessing .ipk if from zip
-                        # Actually we can do better: if inner_regex matches something, we'll get it.
-                        # Let's use the asset role + arch for a clean name if possible?
-                        # For now, let's just use a placeholder and improve if needed.
-                        final_path = os.path.join(dest_dir, final_filename)
-                        if extract_from_zip(zip_tmp_path, inner_regex, final_path):
+                        extracted = extract_all_from_zip(zip_tmp_path, inner_regex, dest_dir)
+                        if extracted:
                             found_any = True
                             found_this_asset_meta = True
                         os.remove(zip_tmp_path)
@@ -210,6 +354,16 @@ def fetch_github_assets(pkg_dir, build_config):
             return False
 
     return found_any
+
+def infer_role(filename):
+    """Which part of a bundle a container belongs to, from its filename."""
+    lowered = filename.lower()
+    if "luci-i18n" in lowered:
+        return "i18n"
+    if "luci-app" in lowered or "luci-theme" in lowered:
+        return "luci"
+    return "core"
+
 
 def http_template_urls(source):
     """The common URL templates for the http_template provider."""
@@ -462,7 +616,36 @@ def unpack_into(dest, strip, includes, rename=None):
 # them, and only then let the workflow start pica-pack. The functions below
 # never call pica-pack; the workflow's build step does that after this exits 0.
 
-def preflight_error(pkg, mgr, phase, reason, platform="", arch="", asset="", blocks=True):
+def classify_fetch_error(error):
+    """Map a failed request onto the four states a check can report.
+
+    A 404 is evidence the resource is gone. A 403 is not: on the GitHub API it
+    is usually a rate limit, which says nothing about the resource and must not
+    be reported as missing. Timeouts and connection errors are in the same
+    category. Anything else is a state this check cannot judge.
+    """
+    if isinstance(error, urllib.error.HTTPError):
+        if error.code == 404:
+            return "missing"
+        if error.code in (403, 408, 429, 500, 502, 503, 504):
+            return "unreachable"
+        return "unverified"
+    if isinstance(error, (urllib.error.URLError, TimeoutError, OSError)):
+        return "unreachable"
+    return "unverified"
+
+
+def describe_fetch_error(error, status):
+    """Say what happened, and say it without claiming more than was observed."""
+    if status == "unreachable":
+        return f"could not reach upstream: {error} (unreachable, not missing)"
+    if status == "unverified":
+        return f"could not verify upstream: {error}"
+    return str(error)
+
+
+def preflight_error(pkg, mgr, phase, reason, platform="", arch="", asset="",
+                    blocks=True, status="invalid"):
     return {
         "pkg": pkg,
         "mgr": mgr,
@@ -472,6 +655,7 @@ def preflight_error(pkg, mgr, phase, reason, platform="", arch="", asset="", blo
         "phase": phase,
         "reason": reason,
         "blocks": blocks,
+        "status": status,
     }
 
 
@@ -715,18 +899,22 @@ def plan_github_assets(release, build_config, stage, pkg):
             platform = platform or "all"
             arch = arch or "all"
             if inner_regex and asset_name.endswith(".zip"):
-                final_name = asset_name[:-4] + ".ipk"
                 kind = "zip"
+                # A zip request may yield several IPKs, so its destination is
+                # the architecture's package directory, not one guessed name.
+                dest = os.path.join(stage, "pkgs", mgr, platform, arch)
             else:
-                final_name = asset_name
                 kind = "container"
-            dest = os.path.join(stage, "pkgs", mgr, platform, arch, final_name)
+                dest = os.path.join(stage, "pkgs", mgr, platform, arch, asset_name)
+            digest = (asset.get("digest") or "").removeprefix("sha256:")
             requests.append(
                 {
                     "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
                     "url": asset.get("browser_download_url", ""), "dest": dest,
                     "kind": kind, "inner_regex": inner_regex, "asset": asset_name,
+                    "role": asset_meta.get("role") or infer_role(asset_name),
                     "required": required, "expected_size": asset.get("size"),
+                    "expected_sha256": digest if re.fullmatch(r"[0-9a-f]{64}", digest) else None,
                 }
             )
             found_any = True
@@ -763,21 +951,44 @@ def plan_github_assets(release, build_config, stage, pkg):
     return requests, errors, optional, skipped
 
 
-def plan_github_package(source, build_config, stage, pkg):
+def plan_github_package(source, build_config, stage, pkg, offline=False):
     repo = source.get("repo")
+    mgr = build_config.get("mgr", "opkg")
     if not repo:
-        return [], [preflight_error(pkg, build_config.get("mgr", "opkg"), "plan", "source.repo is missing")], [], []
+        return [], [preflight_error(pkg, mgr, "plan", "source.repo is missing")], [], []
+    if offline:
+        # A release list needs the network. Offline planning still validates
+        # everything local — static_errors has already checked the asset
+        # regexes, their capture groups and their targets by the time this runs
+        # — and records plainly that the listing itself was not consulted, so
+        # an offline run is never mistaken for a verified asset list.
+        return [], [
+            preflight_error(
+                pkg, mgr, "release",
+                "offline: the release asset list was not consulted",
+                blocks=False, status="unverified",
+            )
+        ], [], []
     api_url = f"https://api.github.com/repos/{repo}/releases"
     try:
         releases = fetch_json(api_url)
     except Exception as err:
+        status = classify_fetch_error(err)
+        # An unreachable upstream is not a verdict on the resource. It still
+        # blocks, because nothing can be built from an asset list nobody read,
+        # but it is reported as unreachable so an operator does not go looking
+        # for a deleted release that is still there.
         return [], [
-            preflight_error(pkg, build_config.get("mgr", "opkg"), "release", f"could not list releases: {err}")
+            preflight_error(
+                pkg, mgr, "release",
+                f"could not list releases: {describe_fetch_error(err, status)}",
+                status=status,
+            )
         ], [], []
     release = select_github_release(releases, source.get("release", {}))
     if release is None:
         return [], [
-            preflight_error(pkg, build_config.get("mgr", "opkg"), "release", "no matching release")
+            preflight_error(pkg, mgr, "release", "no matching release", status="missing")
         ], [], []
     print(f"Matched GitHub release: {release.get('tag_name')}")
     return plan_github_assets(release, build_config, stage, pkg)
@@ -821,7 +1032,8 @@ def plan_http_assets(build_config, stage, pkg):
                 {
                     "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
                     "url": url, "dest": dest, "kind": "container", "asset": filename,
-                    "required": True, "expected_size": None,
+                    "role": infer_role(filename), "required": True,
+                    "expected_size": None, "expected_sha256": None,
                 }
             )
     return requests, errors, [], []
@@ -866,8 +1078,9 @@ def plan_tarball_assets(build_config, stage, pkg):
         requests.append(
             {
                 "pkg": pkg, "mgr": mgr, "platform": platform, "arch": arch,
-                "url": url, "dest": stage, "kind": "tarball", "asset": url.rsplit("/", 1)[-1],
-                "required": True, "expected_size": None,
+                "url": url, "dest": stage, "kind": "tarball",
+                "asset": url.rsplit("/", 1)[-1], "role": "core",
+                "required": True, "expected_size": None, "expected_sha256": None,
                 "extract": {
                     "strip": source.get("strip_components", 0),
                     "includes": source.get("include") or [],
@@ -884,23 +1097,26 @@ def dedupe_requests(requests, pkg, mgr):
     seen = {}
     result = []
     for request in requests:
+        # A zip expands into a directory, so two zips for one arch are not a
+        # path collision by themselves; their extracted files are checked.
         dest = request["dest"]
-        if dest in seen:
-            if seen[dest] != request["url"]:
+        key = (dest, request["asset"]) if request.get("kind") == "zip" else dest
+        if key in seen:
+            if seen[key] != request["url"]:
                 errors.append(
                     preflight_error(
                         pkg, mgr, "plan",
-                        f"two resources write the same path: {seen[dest]} and {request['url']}",
+                        f"two resources write the same path: {seen[key]} and {request['url']}",
                         request["platform"], request["arch"], request["asset"],
                     )
                 )
             continue
-        seen[dest] = request["url"]
+        seen[key] = request["url"]
         result.append(request)
     return result, errors
 
 
-def plan_package(src_dir, stage_root):
+def plan_package(src_dir, stage_root, arch_filter=None, offline=False):
     parts = os.path.normpath(src_dir).split(os.sep)
     if len(parts) < 3 or parts[-3] != "src":
         return {
@@ -930,6 +1146,39 @@ def plan_package(src_dir, stage_root):
     plan["build_config"] = build_config
 
     plan["errors"].extend(static_errors(pkg, mgr, build_json, build_config))
+    if arch_filter:
+        matrix = build_config.get("build", {}).get("matrix", [])
+        if not any(entry.get("arch") == arch_filter for entry in matrix):
+            plan["errors"].append(
+                preflight_error(pkg, mgr, "static", f"arch {arch_filter!r} is not in build.matrix")
+            )
+            return plan
+        build_config.setdefault("build", {})["matrix"] = [
+            entry for entry in matrix if entry.get("arch") == arch_filter
+        ]
+        if mgr == "pica":
+            # A pica artifact takes platform/arch from its manifest; there is
+            # no per-arch staging yet. Refuse an arch the manifest cannot name
+            # rather than building a mislabelled artifact.
+            manifest_path = os.path.join(src_dir, "manifest")
+            values = {}
+            if os.path.isfile(manifest_path):
+                with open(manifest_path, "r", encoding="utf-8") as handle:
+                    for line in handle:
+                        stripped = line.strip()
+                        if stripped.startswith(("platform =", "arch =")):
+                            key, _, value = stripped.partition("=")
+                            values[key.strip()] = value.strip()
+            selected = build_config["build"]["matrix"][0]
+            if values.get("platform") != selected.get("platform") or values.get("arch") != selected.get("arch"):
+                plan["errors"].append(
+                    preflight_error(
+                        pkg, mgr, "static",
+                        "arch filtering for pica requires per-arch manifests, which this job does not stage",
+                        selected.get("platform", ""), arch_filter,
+                    )
+                )
+                return plan
     if plan["errors"]:
         return plan
 
@@ -941,7 +1190,7 @@ def plan_package(src_dir, stage_root):
     provider = build_config.get("source", {}).get("provider")
     if provider == "github":
         requests, errors, optional, skipped = plan_github_package(
-            build_config.get("source", {}), build_config, stage, pkg
+            build_config.get("source", {}), build_config, stage, pkg, offline=offline
         )
     elif provider == "http_template":
         requests, errors, optional, skipped = plan_http_assets(build_config, stage, pkg)
@@ -956,6 +1205,32 @@ def plan_package(src_dir, stage_root):
     plan["requests"] = requests
     plan["errors"].extend(errors)
     plan["errors"].extend(dedupe_errors)
+    if not any(request.get("required", True) for request in requests):
+        # In an offline run a GitHub package has no requests by design — the
+        # asset list was never read — so saying no required resource was
+        # planned would report the offline decision as a configuration fault.
+        #
+        # The same applies after an unreachable upstream: an empty request list
+        # is then a consequence of the failed listing, not a second fault, and
+        # reporting both would bury the real cause under a message that reads
+        # like a bad manifest.
+        offline_github = offline and provider == "github"
+        already_explained = any(
+            error.get("status") in ("unreachable", "unverified") for error in plan["errors"]
+        )
+        if not offline_github and not already_explained:
+            plan["errors"].append(
+                preflight_error(pkg, mgr, "plan", "no required resource was planned")
+            )
+    for request in requests:
+        if re.search(r"\{[^}]+\}", request.get("url", "")):
+            plan["errors"].append(
+                preflight_error(
+                    pkg, mgr, "plan",
+                    f"URL still contains an unresolved template variable: {request['url']}",
+                    request.get("platform", ""), request.get("arch", ""), request.get("asset", ""),
+                )
+            )
     plan["optional"].extend(optional)
     plan["skipped"].extend(skipped)
     return plan
@@ -990,11 +1265,17 @@ def unpack_tarball_request(download_path, request, stage):
         shutil.rmtree(work, ignore_errors=True)
 
 
-def execute_requests(plan):
-    """Download every request into the stage, returning (errors, optional)."""
+def execute_requests(plan, cache_dir=None):
+    """Download every request into the stage, returning (errors, optional).
+
+    A URL is fetched at most once per plan. Some jobs legitimately point
+    several architectures at one noarch file; downloading it again for each
+    architecture only adds requests and bytes.
+    """
     errors = []
     optional = []
     written = {}
+    url_cache = {}
     stage = plan["stage"]
     temp_root = os.path.join(stage, ".pica-downloads")
     os.makedirs(temp_root, exist_ok=True)
@@ -1002,7 +1283,47 @@ def execute_requests(plan):
     for index, request in enumerate(plan["requests"]):
         filename = os.path.basename(request["url"].split("?")[0]) or f"asset-{index}"
         temp = os.path.join(temp_root, f"{index}-{filename}")
-        ok, size, error = download_to(request["url"], temp, request.get("expected_size"))
+
+        cached = url_cache.get(request["url"])
+        if cached and request["kind"] != "tarball":
+            if cached["kind"] == "container":
+                dest = request["dest"]
+                if os.path.exists(dest):
+                    errors.append(
+                        preflight_error(
+                            request["pkg"], request["mgr"], "stage",
+                            f"resource collision at {dest}",
+                            request["platform"], request["arch"], request["asset"],
+                        )
+                    )
+                    continue
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copyfile(cached["path"], dest)
+                request["ok"] = True
+                request["path"] = dest
+                request["reused_url"] = True
+                written[dest] = request["url"]
+                continue
+            if cached["kind"] == "zip":
+                dest = request["dest"]
+                os.makedirs(dest, exist_ok=True)
+                copied = []
+                for path in cached["files"]:
+                    target = os.path.join(dest, os.path.basename(path))
+                    shutil.copyfile(path, target)
+                    copied.append(target)
+                    written[target] = request["url"]
+                request["ok"] = True
+                request["files"] = copied
+                request["reused_url"] = True
+                continue
+
+        ok, size, error = download_to(
+            request["url"], temp,
+            request.get("expected_size"),
+            request.get("expected_sha256"),
+            cache_dir,
+        )
         if not ok:
             entry = preflight_error(
                 request["pkg"], request["mgr"], "download", error,
@@ -1019,7 +1340,7 @@ def execute_requests(plan):
             continue
 
         try:
-            if request["kind"] in ("container", "zip"):
+            if request["kind"] == "container":
                 dest = request["dest"]
                 if os.path.exists(dest):
                     errors.append(
@@ -1031,33 +1352,47 @@ def execute_requests(plan):
                     )
                     os.remove(temp)
                     continue
-                if request["kind"] == "zip":
-                    if not extract_from_zip(temp, request.get("inner_regex"), dest):
-                        errors.append(
-                            preflight_error(
-                                request["pkg"], request["mgr"], "stage",
-                                "no inner file matched inner_regex",
-                                request["platform"], request["arch"], request["asset"],
-                            )
-                        )
-                        os.remove(temp)
-                        continue
-                    os.remove(temp)
-                    if not os.path.isfile(dest) or os.path.getsize(dest) <= 0:
-                        errors.append(
-                            preflight_error(
-                                request["pkg"], request["mgr"], "verify",
-                                "extracted file is missing or empty",
-                                request["platform"], request["arch"], request["asset"],
-                            )
-                        )
-                        continue
-                else:
-                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    shutil.move(temp, dest)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.move(temp, dest)
                 request["ok"] = True
                 request["path"] = dest
                 written[dest] = request["url"]
+                url_cache[request["url"]] = {"kind": "container", "path": dest}
+            elif request["kind"] == "zip":
+                dest = request["dest"]
+                files = extract_all_from_zip(temp, request.get("inner_regex", ""), dest)
+                os.remove(temp)
+                if not files:
+                    errors.append(
+                        preflight_error(
+                            request["pkg"], request["mgr"], "stage",
+                            "no inner file matched inner_regex",
+                            request["platform"], request["arch"], request["asset"],
+                        )
+                    )
+                    continue
+                for path in files:
+                    if os.path.getsize(path) <= 0:
+                        errors.append(
+                            preflight_error(
+                                request["pkg"], request["mgr"], "verify",
+                                f"extracted file is empty: {os.path.basename(path)}",
+                                request["platform"], request["arch"], request["asset"],
+                            )
+                        )
+                    previous = written.get(path)
+                    if previous is not None and previous != request["url"]:
+                        errors.append(
+                            preflight_error(
+                                request["pkg"], request["mgr"], "stage",
+                                f"two resources wrote {path}",
+                                request["platform"], request["arch"], request["asset"],
+                            )
+                        )
+                    written[path] = request["url"]
+                request["ok"] = True
+                request["files"] = files
+                url_cache[request["url"]] = {"kind": "zip", "files": files}
             elif request["kind"] == "tarball":
                 files = unpack_tarball_request(temp, request, stage)
                 if files is None:
@@ -1117,16 +1452,13 @@ def verify_plan(plan):
     manifest = os.path.join(stage, "manifest")
     declared = manifest_dependencies(manifest)
     has_declarations = any(declared.values())
+    manifest_version = manifest_pkgver(manifest)
+    versions_seen = []
+    actual_names = set()
 
-    for request in plan["requests"]:
-        if not request.get("ok"):
-            continue
-        if request["kind"] == "tarball":
-            verified += 1
-            continue
-        path = request.get("path")
+    def verify_one(request, path):
         if not path or not os.path.isfile(path):
-            continue
+            return 0
         if os.path.getsize(path) <= 0:
             errors.append(
                 preflight_error(
@@ -1134,7 +1466,7 @@ def verify_plan(plan):
                     request["platform"], request["arch"], request["asset"],
                 )
             )
-            continue
+            return 0
         metadata = container_metadata(path)
         if metadata is None:
             unverified.append(
@@ -1145,9 +1477,14 @@ def verify_plan(plan):
                     "reason": "container metadata is unreadable (ADB or unsupported format)",
                 }
             )
-            continue
+            return 0
         package = metadata.get("package")
+        version = metadata.get("version")
         architecture = metadata.get("architecture")
+        if package:
+            actual_names.add(package)
+        if version:
+            versions_seen.append(version)
         if package and has_declarations and not declares_package(declared, package):
             errors.append(
                 preflight_error(
@@ -1165,7 +1502,7 @@ def verify_plan(plan):
                     "reason": "container declares no Architecture",
                 }
             )
-            continue
+            return 0
         if request["arch"] != "all" and architecture not in ("all", request["arch"]):
             errors.append(
                 preflight_error(
@@ -1174,13 +1511,386 @@ def verify_plan(plan):
                     request["platform"], request["arch"], request["asset"],
                 )
             )
+            return 0
+        return 1
+
+    for request in plan["requests"]:
+        if not request.get("ok"):
             continue
-        verified += 1
+        if request["kind"] == "tarball":
+            verified += 1
+            continue
+        if request["kind"] == "zip":
+            for path in request.get("files") or []:
+                verified += verify_one(request, path)
+            continue
+        verified += verify_one(request, request.get("path"))
+
+    # A container can carry more than the package the manifest names (a LuCI
+    # bundle also ships the app and translations), so one match is enough. A
+    # manifest that matches none of them is advertising a version the package
+    # does not contain.
+    if manifest_version and versions_seen and not any(
+        version_matches(manifest_version, version) for version in versions_seen
+    ):
+        first = plan["requests"][0] if plan["requests"] else {}
+        errors.append(
+            preflight_error(
+                plan["pkg"], plan["mgr"], "verify",
+                f"manifest advertises {manifest_version!r}, but no downloaded container carries it "
+                f"(saw {', '.join(sorted(set(versions_seen)))})",
+                first.get("platform", ""), first.get("arch", ""),
+            )
+        )
+
+    # When metadata is readable, every LuCI/i18n component the manifest
+    # advertises must actually be present. ADB containers are unreadable, so
+    # this coverage check stays silent rather than guessing from filenames.
+    if actual_names:
+        first = plan["requests"][0] if plan["requests"] else {}
+        for app in declared.get("app", ()):
+            if app.startswith("luci-app-") and app not in actual_names:
+                errors.append(
+                    preflight_error(
+                        plan["pkg"], plan["mgr"], "verify",
+                        f"manifest declares {app!r}, but it was not extracted from the downloaded assets",
+                        first.get("platform", ""), first.get("arch", ""),
+                    )
+                )
+        for template in declared.get("app_i18n", ()):
+            pattern = "^" + re.escape(template).replace(re.escape("{lang}"), ".+") + "$"
+            if not any(re.match(pattern, name) for name in actual_names):
+                errors.append(
+                    preflight_error(
+                        plan["pkg"], plan["mgr"], "verify",
+                        f"manifest declares {template!r}, but it was not extracted from the downloaded assets",
+                        first.get("platform", ""), first.get("arch", ""),
+                    )
+                )
     return errors, unverified, verified
 
 
-def preflight(package_dirs, stage_root, plan_output=None):
-    """Run the global preflight; never calls pica-pack."""
+def probe_url(url, expected_size=None, attempts=3):
+    """Check a URL without downloading the resource.
+
+    The result is deliberately four-valued. A 404 is `missing`; a timeout or
+    5xx is `unreachable`, not evidence that the asset does not exist; a server
+    that refuses both HEAD and a one-byte range is `unverified`. A size that
+    contradicts the release metadata is a definite mismatch and is reported as
+    `missing` with that reason.
+    """
+    if not url.startswith(("http://", "https://")):
+        return {"status": "unverified", "reason": "non-HTTP URL", "size": None}
+    headers = {"User-Agent": "Mozilla/5.0 (Pica-CI-Resource-Probe)"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if "github.com" in url and token:
+        headers["Authorization"] = f"token {token}"
+
+    def one_request(method, extra=None):
+        request_headers = dict(headers)
+        if extra:
+            request_headers.update(extra)
+        request = urllib.request.Request(url, headers=request_headers, method=method)
+        with urllib.request.urlopen(request, timeout=20) as response:
+            length = response.headers.get("Content-Length")
+            response.close()
+        return length
+
+    last_reason = ""
+    for attempt in range(attempts):
+        try:
+            length = one_request("HEAD")
+            size = int(length) if length and length.isdigit() else None
+            if expected_size is not None and size is not None and size != expected_size:
+                return {
+                    "status": "missing",
+                    "reason": f"size changed: got {size}, expected {expected_size}",
+                    "size": size,
+                }
+            return {"status": "valid", "reason": "", "size": size}
+        except urllib.error.HTTPError as error:
+            if error.code in (404, 410):
+                return {"status": "missing", "reason": f"HTTP {error.code}", "size": None}
+            if error.code in (405, 501):
+                try:
+                    length = one_request("GET", {"Range": "bytes=0-0"})
+                    size = None
+                    return {"status": "valid", "reason": "HEAD unsupported; range request succeeded", "size": size}
+                except urllib.error.HTTPError as range_error:
+                    if range_error.code in (404, 410):
+                        return {"status": "missing", "reason": f"HTTP {range_error.code}", "size": None}
+                    last_reason = f"HTTP {range_error.code} on range request"
+                except Exception as range_error:
+                    last_reason = str(range_error)
+                return {"status": "unverified", "reason": last_reason, "size": None}
+            last_reason = f"HTTP {error.code}"
+            if not _retryable(error) or attempt + 1 >= attempts:
+                return {"status": "unreachable", "reason": last_reason, "size": None}
+            _sleep_before_retry(attempt)
+        except Exception as error:
+            last_reason = str(error)
+            if attempt + 1 >= attempts:
+                return {"status": "unreachable", "reason": last_reason, "size": None}
+            _sleep_before_retry(attempt)
+    return {"status": "unreachable", "reason": last_reason, "size": None}
+
+
+def probe_requests(requests):
+    """Probe each unique URL once and attach the result to every request."""
+    unique = {}
+    for request in requests:
+        url = request.get("url")
+        if url and url not in unique:
+            unique[url] = request
+    results = {}
+    if unique:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            futures = {
+                pool.submit(probe_url, url, request.get("expected_size")): url
+                for url, request in unique.items()
+            }
+            for future in concurrent.futures.as_completed(futures):
+                results[futures[future]] = future.result()
+    errors = []
+    warnings = []
+    for request in requests:
+        result = results.get(request.get("url"))
+        if result is None:
+            continue
+        request["probe"] = result
+        location = "/".join(part for part in (request.get("platform"), request.get("arch")) if part)
+        if result["status"] == "missing" and request.get("required", True):
+            errors.append(
+                preflight_error(
+                    request["pkg"], request["mgr"], "probe",
+                    f"resource is missing ({result['reason']})",
+                    request.get("platform", ""), request.get("arch", ""), request.get("asset", ""),
+                )
+            )
+        elif result["status"] in ("unreachable", "unverified"):
+            warnings.append(
+                f"{request['pkg']}/{request['mgr']} {location} {request.get('asset', '')}: "
+                f"{result['status']} ({result['reason']}); download will be attempted"
+            )
+    return errors, warnings
+
+
+def plan_packages(package_dirs, stage_root, arch_filter=None, offline=False):
+    """Build the resource plan for every package without downloading assets."""
+    stage_root = os.path.abspath(stage_root)
+    if os.path.isdir(stage_root):
+        shutil.rmtree(stage_root)
+    os.makedirs(stage_root, exist_ok=True)
+    plans = []
+    errors = []
+    optional = []
+    skipped = []
+    for src_dir in package_dirs:
+        plan = plan_package(src_dir, stage_root, arch_filter, offline=offline)
+        print(f"Preflight {src_dir}: {plan['mgr']}/{plan['pkg']}")
+        errors.extend(plan["errors"])
+        optional.extend(plan["optional"])
+        skipped.extend(plan["skipped"])
+        if plan["errors"]:
+            print(f"  blocked by {len(plan['errors'])} configuration/planning error(s)")
+            continue
+        plans.append(plan)
+    return plans, errors, optional, skipped
+
+
+def plan_all(package_dirs, stage_root, plan_output, probe=False, arch_filter=None,
+             offline=False, allow_unreachable=False):
+    """Write the resource plan and, optionally, probe every unique URL.
+
+    `offline` keeps the whole run off the network. `allow_unreachable` reports
+    an unreachable upstream without failing, which is what a scheduled check
+    wants: a rate limit is not a reason to paint the repository red.
+    """
+    if not package_dirs:
+        print("No packages selected; nothing to plan.")
+        if plan_output:
+            with open(plan_output, "w", encoding="utf-8") as handle:
+                json.dump({"summary": {"packages": 0}, "packages": []}, handle, indent=2)
+                handle.write("\n")
+        return 0
+
+    plans, errors, optional, skipped = plan_packages(
+        package_dirs, stage_root, arch_filter, offline=offline
+    )
+    probe_warnings = []
+    if probe and plans:
+        requests = [request for plan in plans for request in plan["requests"]]
+        probe_errors, probe_warnings = probe_requests(requests)
+        errors.extend(probe_errors)
+
+    stages = [
+        {"source": plan["source"], "stage": plan["stage"], "mgr": plan["mgr"], "pkg": plan["pkg"]}
+        for plan in plans
+    ]
+    blocking = [error for error in errors if error.get("blocks", True)]
+    if allow_unreachable:
+        blocking = [error for error in blocking if error.get("status") != "unreachable"]
+        # Record the decision in the plan itself, so a reader of plan.json sees
+        # what was actually enforced rather than what would have been by default.
+        for error in errors:
+            if error.get("status") == "unreachable":
+                error["blocks"] = False
+    by_status = {}
+    for error in errors:
+        key = error.get("status") or "invalid"
+        by_status[key] = by_status.get(key, 0) + 1
+    summary = {
+        "checked": len(package_dirs),
+        "packages_planned": len(plans),
+        "requests": sum(len(plan["requests"]) for plan in plans),
+        "optional_missing": len(optional),
+        "validation_failures": len(errors),
+        "packages_blocked": len({error["pkg"] for error in blocking}),
+        "unreachable": by_status.get("unreachable", 0),
+        "by_status": by_status,
+        "offline": offline,
+        "stages": stages,
+        "probe": probe,
+    }
+    for error in errors:
+        location = "/".join(part for part in (error.get("platform"), error.get("arch")) if part)
+        print(
+            f"error: [{error['pkg']}/{error['mgr']} {location} {error['phase']}] "
+            f"{error['asset']}: {error['reason']}",
+            file=sys.stderr,
+        )
+    for item in optional:
+        print(f"warning: optional asset missing for {item['pkg']}: {item.get('asset', '')}", file=sys.stderr)
+    for item in skipped:
+        print(f"note: skipped {item['pkg']}/{item['mgr']} {item['asset']} ({item['reason']})")
+    for warning in probe_warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+
+    print("Plan summary:")
+    print(f"- Packages planned: {summary['packages_planned']}/{summary['checked']}")
+    print(f"- Resource requests: {summary['requests']}")
+    print(f"- Optional assets missing: {summary['optional_missing']}")
+    print(f"- Validation failures: {summary['validation_failures']}")
+    print(f"- Packages blocked: {summary['packages_blocked']}")
+    if by_status:
+        print(f"- Failures by status: {', '.join(f'{key}={value}' for key, value in sorted(by_status.items()))}")
+    if probe:
+        statuses = {}
+        for plan in plans:
+            for request in plan["requests"]:
+                status = (request.get("probe") or {}).get("status", "unprobed")
+                statuses[status] = statuses.get(status, 0) + 1
+        print(f"- Probe results: {', '.join(f'{key}={value}' for key, value in sorted(statuses.items())) or 'none'}")
+
+    if plan_output:
+        os.makedirs(os.path.dirname(os.path.abspath(plan_output)) or ".", exist_ok=True)
+        with open(plan_output, "w", encoding="utf-8") as handle:
+            json.dump(
+                {
+                    "summary": summary,
+                    "packages": plans,
+                    "errors": errors,
+                    "optional_missing": optional,
+                    "skipped": skipped,
+                    "probe_warnings": probe_warnings,
+                },
+                handle,
+                indent=2,
+                ensure_ascii=False,
+            )
+            handle.write("\n")
+
+    if blocking:
+        if len(blocking) != len(errors):
+            print(
+                f"note: {len(errors) - len(blocking)} failure(s) reported but not "
+                "blocking (unreachable upstream)"
+            )
+        print("FETCH PHASE NOT STARTED")
+        return 1
+    if errors:
+        print(f"Plan complete with {len(errors)} non-blocking note(s).")
+        return 0
+    print(f"Plan complete; {len(plans)} package(s) ready to fetch.")
+    return 0
+
+
+def fetch_plan_file(plan_path, cache_dir=None):
+    """Download and verify exactly the resources a prior plan named."""
+    with open(plan_path, "r", encoding="utf-8") as handle:
+        document = json.load(handle)
+    plans = document.get("packages", [])
+    errors = list(document.get("errors", []))
+    optional = list(document.get("optional_missing", []))
+    skipped = list(document.get("skipped", []))
+    unverified = []
+    stages = []
+    required_passed = 0
+
+    for plan in plans:
+        if plan.get("errors"):
+            errors.extend(plan["errors"])
+            continue
+        print(f"Fetching {plan['mgr']}/{plan['pkg']} from {plan['stage']}")
+        download_errors, download_optional = execute_requests(plan, cache_dir)
+        errors.extend(download_errors)
+        optional.extend(download_optional)
+        verify_errors, verify_unverified, verified = verify_plan(plan)
+        errors.extend(verify_errors)
+        unverified.extend(verify_unverified)
+        if verify_errors and cache_dir:
+            # The cached bytes were complete but not the resource this package
+            # can use. Drop them so the next run does not repeat the failure.
+            for request in plan["requests"]:
+                _cache_remove(cache_dir, request.get("url", ""))
+        required_passed += sum(
+            1 for request in plan["requests"] if request.get("ok") and request.get("required", True)
+        )
+        if not download_errors and not verify_errors:
+            stages.append(
+                {"source": plan["source"], "stage": plan["stage"], "mgr": plan["mgr"], "pkg": plan["pkg"]}
+            )
+            print(f"  staged at {plan['stage']} ({verified} verified asset(s))")
+
+    for error in errors:
+        location = "/".join(part for part in (error.get("platform"), error.get("arch")) if part)
+        print(
+            f"error: [{error['pkg']}/{error['mgr']} {location} {error['phase']}] "
+            f"{error['asset']}: {error['reason']}",
+            file=sys.stderr,
+        )
+    for item in optional:
+        print(f"warning: optional asset missing for {item['pkg']}: {item.get('asset', '')}", file=sys.stderr)
+    for item in skipped:
+        print(f"note: skipped {item['pkg']}/{item['mgr']} {item['asset']} ({item['reason']})")
+    for item in unverified:
+        print(
+            f"warning: {item['pkg']}/{item['mgr']} {item['asset']}: {item['reason']}; not verified",
+            file=sys.stderr,
+        )
+
+    print("Fetch summary:")
+    print(f"- Packages staged: {len(stages)}/{len(plans)}")
+    print(f"- Required assets passed: {required_passed}")
+    print(f"- Optional assets missing: {len(optional)}")
+    print(f"- Validation failures: {len(errors)}")
+    print(f"- Packages blocked: {len({error['pkg'] for error in errors if error.get('blocks', True)})}")
+    print(f"- Assets unverified: {len(unverified)}")
+
+    if errors:
+        print("PACKAGE PHASE NOT STARTED")
+        return 1
+    print(f"Fetch complete; {len(stages)} package(s) staged.")
+    return 0
+
+
+def preflight(package_dirs, stage_root, plan_output=None, arch_filter=None, cache_dir=None):
+    """Run the combined legacy preflight; never calls pica-pack.
+
+    The workflow uses `--plan` followed by `--fetch-plan` so the no-download
+    plan is a separate, enforced stage. This combined form is kept for local
+    runs and the integration tests.
+    """
     stage_root = os.path.abspath(stage_root)
     if not package_dirs:
         print("Preflight summary:")
@@ -1192,30 +1902,14 @@ def preflight(package_dirs, stage_root, plan_output=None):
         print("No packages selected; nothing to preflight.")
         return 0
 
-    if os.path.isdir(stage_root):
-        shutil.rmtree(stage_root)
-    os.makedirs(stage_root, exist_ok=True)
-
-    checked = 0
+    plans, errors, optional, skipped = plan_packages(package_dirs, stage_root, arch_filter)
+    checked = len(package_dirs)
     required_passed = 0
-    errors = []
-    optional = []
-    skipped = []
     unverified = []
     stages = []
 
-    for src_dir in package_dirs:
-        checked += 1
-        plan = plan_package(src_dir, stage_root)
-        print(f"Preflight {src_dir}: {plan['mgr']}/{plan['pkg']}")
-        errors.extend(plan["errors"])
-        optional.extend(plan["optional"])
-        skipped.extend(plan["skipped"])
-        if plan["errors"]:
-            print(f"  blocked by {len(plan['errors'])} configuration/planning error(s)")
-            continue
-
-        download_errors, download_optional = execute_requests(plan)
+    for plan in plans:
+        download_errors, download_optional = execute_requests(plan, cache_dir)
         errors.extend(download_errors)
         optional.extend(download_optional)
         verify_errors, verify_unverified, verified = verify_plan(plan)
@@ -1225,7 +1919,7 @@ def preflight(package_dirs, stage_root, plan_output=None):
             1 for request in plan["requests"] if request.get("ok") and request["required"]
         )
         if not download_errors and not verify_errors:
-            stages.append({"source": src_dir, "stage": plan["stage"], "mgr": plan["mgr"], "pkg": plan["pkg"]})
+            stages.append({"source": plan["source"], "stage": plan["stage"], "mgr": plan["mgr"], "pkg": plan["pkg"]})
             print(f"  staged at {plan['stage']} ({verified} verified asset(s))")
         else:
             print(f"  blocked by {len(download_errors) + len(verify_errors)} resource/verification error(s)")
@@ -1291,83 +1985,130 @@ def preflight(package_dirs, stage_root, plan_output=None):
     return 0
 
 
+USAGE = """Usage:
+  fetch_assets.py --plan --stage-root DIR --plan-output FILE [--probe] [--offline] [--allow-unreachable] [--arch ARCH] <src/mgr/pkg>...
+  fetch_assets.py --fetch-plan FILE [--cache-dir DIR]
+  fetch_assets.py --preflight --stage-root DIR [--plan-output FILE] [--cache-dir DIR] [--arch ARCH] <src/mgr/pkg>...
+  fetch_assets.py <package_dir> [build_json_path]"""
+
+
+def parse_arguments(argv):
+    options = {
+        "mode": None, "stage_root": None, "plan_output": None, "plan_path": None,
+        "cache_dir": None, "arch": None, "probe": False, "packages": [],
+        "offline": False, "allow_unreachable": False,
+    }
+    index = 0
+    while index < len(argv):
+        arg = argv[index]
+        if arg == "--plan":
+            options["mode"] = "plan"
+            index += 1
+        elif arg == "--fetch-plan":
+            options["mode"] = "fetch"
+            if index + 1 >= len(argv):
+                raise ValueError("--fetch-plan requires a file")
+            options["plan_path"] = argv[index + 1]
+            index += 2
+        elif arg == "--preflight":
+            options["mode"] = "preflight"
+            index += 1
+        elif arg == "--probe":
+            options["probe"] = True
+            index += 1
+        elif arg == "--offline":
+            options["offline"] = True
+            index += 1
+        elif arg == "--allow-unreachable":
+            options["allow_unreachable"] = True
+            index += 1
+        elif arg in ("--stage-root", "--plan-output", "--cache-dir", "--arch"):
+            if index + 1 >= len(argv):
+                raise ValueError(f"{arg} requires a value")
+            options[arg[2:].replace("-", "_")] = argv[index + 1]
+            index += 2
+        elif arg.startswith("-"):
+            raise ValueError(f"unknown option {arg}")
+        else:
+            options["packages"].append(arg)
+            index += 1
+    return options
+
+
 def main():
-    args = sys.argv[1:]
-    if "--preflight" in args:
-        stage_root = None
-        plan_output = None
-        packages = []
-        index = 0
-        while index < len(args):
-            arg = args[index]
-            if arg == "--preflight":
-                index += 1
-            elif arg == "--stage-root":
-                if index + 1 >= len(args):
-                    print("error: --stage-root requires a directory", file=sys.stderr)
-                    sys.exit(2)
-                stage_root = args[index + 1]
-                index += 2
-            elif arg == "--plan-output":
-                if index + 1 >= len(args):
-                    print("error: --plan-output requires a file", file=sys.stderr)
-                    sys.exit(2)
-                plan_output = args[index + 1]
-                index += 2
-            else:
-                packages.append(arg)
-                index += 1
-        if not stage_root:
-            print(
-                "Usage: fetch_assets.py --preflight --stage-root DIR "
-                "[--plan-output FILE] <src/mgr/pkg>...",
-                file=sys.stderr,
-            )
-            sys.exit(2)
-        sys.exit(preflight(packages, stage_root, plan_output))
+    argv = sys.argv[1:]
+    if not argv:
+        print(USAGE, file=sys.stderr)
+        sys.exit(2)
 
-    if not args:
-        print("Usage: fetch_assets.py <package_dir> [build_json_path]")
-        sys.exit(1)
-
-    pkg_dir = args[0]
-    build_json_path = args[1] if len(args) > 1 else os.path.join(pkg_dir, "build.json")
-    
-    if not os.path.exists(build_json_path):
-        print(f"Skipping: {build_json_path} not found.")
+    if not argv[0].startswith("-"):
+        # Legacy direct mode for one package, used by local checks.
+        pkg_dir = argv[0]
+        build_json_path = argv[1] if len(argv) > 1 else os.path.join(pkg_dir, "build.json")
+        if not os.path.exists(build_json_path):
+            print(f"Skipping: {build_json_path} not found.")
+            return
+        with open(build_json_path, 'r') as f:
+            build_config = json.load(f)
+        provider = build_config.get("source", {}).get("provider", "github")
+        if provider == "github":
+            success = fetch_github_assets(pkg_dir, build_config)
+        elif provider == "http_template":
+            success = fetch_http_template_assets(pkg_dir, build_config)
+        elif provider == "tarball":
+            success = extract_tarball(pkg_dir, build_config)
+        else:
+            print(f"Unknown provider: {provider}")
+            sys.exit(1)
+        if not success:
+            print("Fetch failed or no assets found.")
+            sys.exit(1)
+        problems, skipped = check_downloaded(pkg_dir, build_config)
+        for path in skipped:
+            print(f"warning: could not read the package name of {path}; not verified")
+        if problems:
+            for problem in problems:
+                print(f"error: {problem}", file=sys.stderr)
+            print(f"\n{len(problems)} dependency mismatch(es)", file=sys.stderr)
+            sys.exit(1)
         return
 
-    with open(build_json_path, 'r') as f:
-        build_config = json.load(f)
+    try:
+        options = parse_arguments(argv)
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        print(USAGE, file=sys.stderr)
+        sys.exit(2)
 
-    provider = build_config.get("source", {}).get("provider", "github")
-    success = False
-
-    if provider == "github":
-        success = fetch_github_assets(pkg_dir, build_config)
-    elif provider == "http_template":
-        success = fetch_http_template_assets(pkg_dir, build_config)
-    elif provider == "tarball":
-        success = extract_tarball(pkg_dir, build_config)
-    else:
-        print(f"Unknown provider: {provider}")
-        sys.exit(1)
-
-    if not success:
-        print("Fetch failed or no assets found.")
-        sys.exit(1)
-
-    # A container installs under the name in its control metadata, which is not
-    # the name it was matched by. Verify the manifest declares that name, so a
-    # rename upstream fails the build instead of shipping a broken package.
-    problems, skipped = check_downloaded(pkg_dir, build_config)
-    for path in skipped:
-        print(f"warning: could not read the package name of {path}; not verified")
-    if problems:
-        for problem in problems:
-            print(f"error: {problem}", file=sys.stderr)
-        print(f"\n{len(problems)} dependency mismatch(es)", file=sys.stderr)
-        sys.exit(1)
+    mode = options["mode"]
+    if mode == "plan":
+        if not options["stage_root"] or not options["plan_output"]:
+            print("error: --plan requires --stage-root and --plan-output", file=sys.stderr)
+            sys.exit(2)
+        sys.exit(
+            plan_all(
+                options["packages"], options["stage_root"], options["plan_output"],
+                probe=options["probe"], arch_filter=options["arch"],
+                offline=options["offline"], allow_unreachable=options["allow_unreachable"],
+            )
+        )
+    if mode == "fetch":
+        sys.exit(fetch_plan_file(options["plan_path"], options["cache_dir"]))
+    if mode == "preflight":
+        if not options["stage_root"]:
+            print("error: --preflight requires --stage-root", file=sys.stderr)
+            sys.exit(2)
+        if options["probe"]:
+            print("error: --probe is only valid with --plan", file=sys.stderr)
+            sys.exit(2)
+        sys.exit(
+            preflight(
+                options["packages"], options["stage_root"], options["plan_output"],
+                arch_filter=options["arch"], cache_dir=options["cache_dir"],
+            )
+        )
+    print(USAGE, file=sys.stderr)
+    sys.exit(2)
 
 if __name__ == "__main__":
     main()

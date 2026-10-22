@@ -1,6 +1,6 @@
 pkgname = luci-theme-aurora
 appname = luci-theme-aurora
-pkgver = 1.4.0
+pkgver = 1.4.0-r20260920
 pkgrel = 1
 os = openwrt
 platform = all

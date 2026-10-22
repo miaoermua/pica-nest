@@ -163,6 +163,30 @@ def full_plan(root="."):
     return result
 
 
+def select_packages(value, exists):
+    """Validate an explicit `src/<mgr>/<pkg>` list for a manual run."""
+    result = Plan()
+    packages = set()
+    for raw in value.replace(",", " ").split():
+        path = raw.strip().rstrip("/")
+        parts = path.replace("\\", "/").split("/")
+        if len(parts) != 3 or parts[0] != "src" or parts[1] not in BACKENDS:
+            result.errors.append(f"{raw!r}: expected src/<mgr>/<pkg>")
+            continue
+        src = "/".join(parts)
+        job = f"ci/{parts[1]}/{parts[2]}/build.json"
+        if not exists(f"{src}/manifest"):
+            result.errors.append(f"{src}: manifest is missing")
+        elif not exists(job):
+            result.errors.append(f"{src}: {job} is missing")
+        else:
+            packages.add(src)
+    result.packages = sorted(packages)
+    if not result.packages and not result.errors:
+        result.errors.append("--packages selected no package")
+    return result
+
+
 def parse_name_status(data):
     """Parse `git diff --name-status -z` output."""
     tokens = data.split(b"\0")
@@ -260,6 +284,10 @@ def main():
         action="store_true",
         help="validate globally without rebuilding (manual run without a diff range)",
     )
+    mode_group.add_argument(
+        "--packages",
+        help="explicit space/comma-separated src/<mgr>/<pkg> list for a manual run",
+    )
     parser.add_argument("--head", help="commit after the change (github.sha)")
     parser.add_argument("--github-output", help="append step outputs to this file")
     args = parser.parse_args()
@@ -270,6 +298,9 @@ def main():
     elif args.full_validation_only:
         result, mode = Plan(full_validation=True), "full-validation"
         result.notes.append("manual run without a diff range; no package was selected")
+    elif args.packages is not None:
+        result, mode = select_packages(args.packages, os.path.isfile), "manual-selection"
+        result.notes.append("packages selected explicitly")
     else:
         if not args.head:
             print("error: --head is required with --base", file=sys.stderr)

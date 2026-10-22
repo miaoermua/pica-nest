@@ -1,6 +1,6 @@
 pkgname = openclash
 appname = openclash
-pkgver = 0.47.075
+pkgver = 0.48.002
 pkgrel = 1
 os = openwrt
 platform = all

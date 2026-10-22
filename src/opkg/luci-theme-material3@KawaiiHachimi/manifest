@@ -1,6 +1,6 @@
 pkgname = luci-theme-material3@KawaiiHachimi
 appname = luci-theme-material3
-pkgver = 26.156.15499
+pkgver = 26.156.15499~38397ed
 pkgrel = 1
 os = openwrt
 platform = all

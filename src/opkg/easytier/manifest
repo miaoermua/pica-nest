@@ -16,3 +16,5 @@ packager = pica-pack
 type = cli
 targets = opkg
 app = easytier
+app = luci-app-easytier
+app_i18n = luci-i18n-easytier-{lang}

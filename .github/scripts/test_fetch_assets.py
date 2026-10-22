@@ -1,26 +1,294 @@
 #!/usr/bin/env python3
 """Tests for asset planning, preflight staging and the two-phase pipeline."""
+import http.server
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+import urllib.error
+import zipfile
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from fetch_assets import (  # noqa: E402
     dedupe_requests,
+    download_to,
+    extract_all_from_zip,
+    fetch_plan_file,
     http_template_urls,
     http_template_urls_for_arch,
+    plan_all,
     plan_github_assets,
     plan_http_assets,
     plan_tarball_assets,
+    verify_plan,
 )
-from container_metadata import declares_package  # noqa: E402
+from container_metadata import declares_package, version_matches  # noqa: E402
 
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetch_assets.py")
+
+
+class VersionMatchTest(unittest.TestCase):
+    def test_separators_and_revisions_do_not_change_a_version(self):
+        self.assertTrue(version_matches("4.1.10", "4.1.10-r1"))
+        self.assertTrue(version_matches("1.8.9", "1.8-9"))
+        self.assertTrue(version_matches("26.156.15499~38397ed", "26.156.15499.38397ed"))
+        self.assertTrue(version_matches("9.1", "nano_9.1-r1_x86_64.ipk"))
+
+    def test_a_different_base_version_is_not_a_match(self):
+        self.assertFalse(version_matches("3.9.1", "3.17.2-r1"))
+        self.assertFalse(version_matches("4.1.5", "4.1.10-r1"))
+        self.assertFalse(version_matches("9.20.18", "9.20.26-r1"))
+
+
+def make_ipk(path, package, version, arch="all"):
+    import io
+    import tarfile
+
+    control = f"Package: {package}\nVersion: {version}\nArchitecture: {arch}\n".encode()
+    control_tar = io.BytesIO()
+    with tarfile.open(fileobj=control_tar, mode="w:gz") as archive:
+        info = tarfile.TarInfo("control")
+        info.size = len(control)
+        archive.addfile(info, io.BytesIO(control))
+    with tarfile.open(path, "w:gz") as archive:
+        info = tarfile.TarInfo("control.tar.gz")
+        info.size = len(control_tar.getvalue())
+        archive.addfile(info, io.BytesIO(control_tar.getvalue()))
+
+
+class VerifyPlanVersionTest(unittest.TestCase):
+    def plan(self, tmp, pkgver, packages):
+        stage = os.path.join(tmp, "stage")
+        os.makedirs(stage, exist_ok=True)
+        with open(os.path.join(stage, "manifest"), "w", encoding="utf-8") as handle:
+            handle.write(
+                f"pkgname = demo\npkgver = {pkgver}\npkgrel = 1\n"
+                "app = demo\napp = luci-app-demo\n"
+            )
+        requests = []
+        for index, (package, version) in enumerate(packages):
+            path = os.path.join(stage, f"{package}.ipk")
+            make_ipk(path, package, version)
+            requests.append(
+                {
+                    "ok": True, "kind": "container", "pkg": "demo", "mgr": "opkg",
+                    "platform": "all", "arch": "all", "asset": os.path.basename(path),
+                    "path": path,
+                }
+            )
+        return {"pkg": "demo", "mgr": "opkg", "stage": stage, "requests": requests}
+
+    def test_matching_container_version_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self.plan(
+                tmp, "1.0.0",
+                [("demo", "1.0.0-r1"), ("luci-app-demo", "26.100.1~abc")],
+            )
+            errors, _, verified = verify_plan(plan)
+            self.assertEqual(errors, [])
+            self.assertEqual(verified, 2)
+
+    def test_manifest_version_missing_from_all_containers_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self.plan(tmp, "1.0.0", [("demo", "2.0.0-r1")])
+            errors, _, _ = verify_plan(plan)
+            self.assertTrue(any("no downloaded container carries it" in error["reason"] for error in errors))
+
+    def test_a_bundle_matches_on_its_core_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = self.plan(
+                tmp, "1.0.0",
+                [("demo", "1.0.0-r1"), ("luci-app-demo", "26.100.1~abc")],
+            )
+            errors, _, _ = verify_plan(plan)
+            self.assertEqual(errors, [])
+
+
+class ZipExtractionTest(unittest.TestCase):
+    def test_every_matching_ipk_is_extracted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = os.path.join(tmp, "EasyTier.zip")
+            dest = os.path.join(tmp, "dest")
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("easytier_2.5.0_x86_64.ipk", b"core")
+                archive.writestr("luci-app-easytier_2.5.0_all.ipk", b"luci")
+                archive.writestr("luci-i18n-easytier-zh-cn_git-1_all.ipk", b"i18n")
+                archive.writestr("easytier-noweb_2.8.0_x86_64.ipk", b"noweb")
+                archive.writestr("README.txt", b"not a package")
+            regex = r"^(?:easytier(?!-noweb)|luci-app-easytier|luci-i18n-easytier).*\.ipk$"
+            files = extract_all_from_zip(zip_path, regex, dest)
+            self.assertEqual(
+                [os.path.basename(path) for path in files],
+                [
+                    "easytier_2.5.0_x86_64.ipk",
+                    "luci-app-easytier_2.5.0_all.ipk",
+                    "luci-i18n-easytier-zh-cn_git-1_all.ipk",
+                ],
+            )
+            self.assertFalse(os.path.exists(os.path.join(dest, "easytier-noweb_2.8.0_x86_64.ipk")))
+
+
+class ServerFixture:
+    def __init__(self, directory, failures=0):
+        self.directory = directory
+        self.failures = failures
+        self.gets = 0
+        self.heads = 0
+
+        fixture = self
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_args):
+                return
+
+            def _path(self):
+                return self.path.split("?", 1)[0].lstrip("/")
+
+            def do_HEAD(self):
+                fixture.heads += 1
+                path = os.path.join(fixture.directory, self._path())
+                if not os.path.isfile(path):
+                    self.send_error(404)
+                    return
+                self.send_response(200)
+                self.send_header("Content-Length", str(os.path.getsize(path)))
+                self.end_headers()
+
+            def do_GET(self):
+                fixture.gets += 1
+                if fixture.gets <= fixture.failures:
+                    self.send_error(500)
+                    return
+                path = os.path.join(fixture.directory, self._path())
+                if not os.path.isfile(path):
+                    self.send_error(404)
+                    return
+                data = open(path, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+        self.url = f"http://127.0.0.1:{self.server.server_port}"
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=5)
+
+
+class PlanFetchTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self.tmp.name)
+        self.old_cwd = os.getcwd()
+        os.chdir(self.root)
+        self.asset_dir = self.root / "assets"
+        self.asset_dir.mkdir()
+        self.server = None
+
+    def tearDown(self):
+        if self.server:
+            self.server.close()
+        os.chdir(self.old_cwd)
+        self.tmp.cleanup()
+
+    def make_repo(self, url, matrix=None, filename="demo_1.0.0-r1_x86_64.ipk", ipk_arch="x86_64"):
+        (self.root / "src/opkg/demo").mkdir(parents=True)
+        (self.root / "ci/opkg/demo").mkdir(parents=True)
+        (self.root / "src/opkg/demo/manifest").write_text(
+            "pkgname = demo\nappname = demo\npkgver = 1.0.0\npkgrel = 1\n"
+            "os = openwrt\nplatform = all\narch = all\ntargets = opkg\napp = demo\n",
+            encoding="utf-8",
+        )
+        job = {
+            "schema": "pica-ci-job-v1", "mgr": "opkg", "id": "demo", "enabled": True,
+            "manifest": "src/opkg/demo/manifest",
+            "source": {"provider": "http_template", "url_templates": [url]},
+            "versioning": {"pkgver": {"from": "manifest", "fallback": "1.0.0"}},
+            "build": {
+                "matrix": matrix or [{"platform": "amd64", "arch": "x86_64"}],
+                "include_dirs": ["scripts", "root", "pkgs"],
+            },
+            "publish": {"registry_db": "r/opkg/demo/db.json"},
+        }
+        (self.root / "ci/opkg/demo/build.json").write_text(json.dumps(job), encoding="utf-8")
+        make_ipk(str(self.asset_dir / filename), "demo", "1.0.0-r1", ipk_arch)
+
+    def start_server(self, failures=0):
+        self.server = ServerFixture(str(self.asset_dir), failures=failures)
+        return self.server
+
+    def test_plan_does_not_download_and_fetch_consumes_the_plan(self):
+        server = self.start_server()
+        self.make_repo(f"{server.url}/demo_1.0.0-r1_x86_64.ipk")
+        plan_path = "plan.json"
+        status = plan_all(["src/opkg/demo"], "stage", plan_path)
+        self.assertEqual(status, 0)
+        self.assertEqual(server.gets, 0)
+        self.assertFalse(Path("stage/opkg/demo/pkgs").exists())
+
+        status = fetch_plan_file(plan_path)
+        self.assertEqual(status, 0)
+        self.assertEqual(server.gets, 1)
+        self.assertTrue(
+            Path("stage/opkg/demo/pkgs/opkg/amd64/x86_64/demo_1.0.0-r1_x86_64.ipk").is_file()
+        )
+
+    def test_probe_blocks_a_missing_resource_before_get(self):
+        server = self.start_server()
+        self.make_repo(f"{server.url}/missing.ipk")
+        status = plan_all(["src/opkg/demo"], "stage", "plan.json", probe=True)
+        self.assertEqual(status, 1)
+        self.assertEqual(server.gets, 0)
+        self.assertGreaterEqual(server.heads, 1)
+        self.assertFalse(Path("stage/opkg/demo/pkgs").exists())
+
+    def test_fetch_deduplicates_the_same_url(self):
+        server = self.start_server()
+        matrix = [
+            {"platform": "amd64", "arch": "x86_64"},
+            {"platform": "arm64", "arch": "aarch64_generic"},
+        ]
+        self.make_repo(
+            f"{server.url}/demo_1.0.0-r1_x86_64.ipk", matrix=matrix, ipk_arch="all"
+        )
+        self.assertEqual(plan_all(["src/opkg/demo"], "stage", "plan.json"), 0)
+        self.assertEqual(fetch_plan_file("plan.json"), 0)
+        self.assertEqual(server.gets, 1)
+        self.assertTrue(
+            Path("stage/opkg/demo/pkgs/opkg/arm64/aarch64_generic/demo_1.0.0-r1_x86_64.ipk").is_file()
+        )
+
+    def test_asset_cache_avoids_a_second_get(self):
+        server = self.start_server()
+        self.make_repo(f"{server.url}/demo_1.0.0-r1_x86_64.ipk")
+        cache = str(self.root / "cache")
+        self.assertEqual(plan_all(["src/opkg/demo"], "stage1", "plan1.json"), 0)
+        self.assertEqual(fetch_plan_file("plan1.json", cache_dir=cache), 0)
+        self.assertEqual(server.gets, 1)
+        self.assertEqual(plan_all(["src/opkg/demo"], "stage2", "plan2.json"), 0)
+        self.assertEqual(fetch_plan_file("plan2.json", cache_dir=cache), 0)
+        self.assertEqual(server.gets, 1)
+
+    def test_transient_500_is_retried(self):
+        server = self.start_server(failures=2)
+        (self.asset_dir / "demo_1.0.0-r1_x86_64.ipk").write_bytes(b"asset bytes")
+        path = str(self.root / "asset.bin")
+        with mock.patch("fetch_assets._sleep_before_retry"):
+            ok, size, error = download_to(f"{server.url}/demo_1.0.0-r1_x86_64.ipk", path, attempts=3)
+        self.assertTrue(ok, error)
+        self.assertEqual(server.gets, 3)
+        self.assertEqual(size, Path(path).stat().st_size)
 
 
 class HttpTemplateUrlTest(unittest.TestCase):
@@ -365,6 +633,133 @@ class PreflightIntegrationTest(unittest.TestCase):
         result = self.run_preflight([])
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Packages checked: 0", result.stdout)
+
+
+class UpstreamErrorClassificationTest(unittest.TestCase):
+    """An unreachable upstream must not be reported as a missing resource.
+
+    A rate limit says nothing about whether a release exists. Reporting it as a
+    missing resource sends an operator looking for a deleted package that is
+    still there, and on a scheduled run it paints the repository red for a
+    condition that resolves itself.
+    """
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(prefix="pica-upstream-test-")
+        self.root = Path(self.temp.name)
+        self._cwd = os.getcwd()
+        os.chdir(self.root)
+        self.addCleanup(os.chdir, self._cwd)
+        self.addCleanup(self.temp.cleanup)
+
+    def github_package(self, name="ghost", arch="x86_64"):
+        (self.root / "src" / "opkg" / name).mkdir(parents=True, exist_ok=True)
+        (self.root / "ci" / "opkg" / name).mkdir(parents=True, exist_ok=True)
+        (self.root / "src" / "opkg" / name / "manifest").write_text(
+            f"pkgname = {name}\nappname = {name}\npkgver = 1.0.0\npkgrel = 1\n"
+            "os = openwrt\ntargets = opkg\n",
+            encoding="utf-8",
+        )
+        config = {
+            "schema": "pica-ci-job-v1",
+            "mgr": "opkg",
+            "id": name,
+            "manifest": f"src/opkg/{name}/manifest",
+            "source": {
+                "provider": "github",
+                "repo": "owner/repo",
+                "release": {
+                    "tag": {"mode": "regex", "regex": "^v[0-9.]+$"},
+                    "assets": [
+                        {
+                            "name": "app",
+                            "role": "app",
+                            "regex": "^app_[0-9.]+_(.*)\\.ipk$",
+                            "required": True,
+                            "capture_to": {"arch": 1},
+                        }
+                    ],
+                },
+            },
+            "build": {
+                "matrix": [{"platform": "amd64", "arch": arch}],
+                "include_dirs": ["scripts", "root", "pkgs"],
+                "pack": {"tool": "pica-pack", "format": "pkg.tar.gz"},
+            },
+        }
+        (self.root / "ci" / "opkg" / name / "build.json").write_text(
+            json.dumps(config), encoding="utf-8"
+        )
+        return str(self.root / "src" / "opkg" / name)
+
+    def run_plan(self, packages, **kwargs):
+        out = self.root / "plan.json"
+        code = plan_all(packages, str(self.root / "stage"), str(out), **kwargs)
+        plan = json.loads(out.read_text(encoding="utf-8")) if out.exists() else {}
+        return code, plan
+
+    def test_offline_plan_never_asks_for_a_release_list(self):
+        package = self.github_package()
+        with mock.patch("fetch_assets.fetch_json") as fetch:
+            code, plan = self.run_plan([package], offline=True)
+        fetch.assert_not_called()
+        self.assertEqual(code, 0, "an offline plan must not fail on a github job")
+        reasons = [e["reason"] for e in plan["errors"]]
+        self.assertTrue(
+            any("offline" in reason for reason in reasons),
+            "an offline run must say the listing was not consulted",
+        )
+
+    def test_a_rate_limit_is_unreachable_rather_than_missing(self):
+        package = self.github_package()
+        limit = urllib.error.HTTPError(
+            "https://api.github.com/repos/owner/repo/releases", 403, "rate limit exceeded", {}, None
+        )
+        with mock.patch("fetch_assets.fetch_json", side_effect=limit):
+            code, plan = self.run_plan([package], allow_unreachable=True)
+        statuses = {e["status"] for e in plan["errors"]}
+        self.assertIn("unreachable", statuses)
+        self.assertNotIn("missing", statuses, "a 403 is not evidence the release is gone")
+        self.assertEqual(
+            [e for e in plan["errors"] if e["blocks"]], [],
+            "unreachable must not block when the caller allows it",
+        )
+        self.assertEqual(code, 0)
+
+    def test_a_rate_limit_still_blocks_a_build(self):
+        package = self.github_package()
+        limit = urllib.error.HTTPError(
+            "https://api.github.com/repos/owner/repo/releases", 403, "rate limit exceeded", {}, None
+        )
+        with mock.patch("fetch_assets.fetch_json", side_effect=limit):
+            code, plan = self.run_plan([package])
+        self.assertEqual(code, 1, "a build cannot proceed on an unread asset list")
+        self.assertTrue([e for e in plan["errors"] if e["blocks"]])
+
+    def test_an_absent_release_is_missing(self):
+        package = self.github_package()
+        gone = urllib.error.HTTPError(
+            "https://api.github.com/repos/owner/repo/releases", 404, "Not Found", {}, None
+        )
+        with mock.patch("fetch_assets.fetch_json", side_effect=gone):
+            code, plan = self.run_plan([package], allow_unreachable=True)
+        statuses = {e["status"] for e in plan["errors"]}
+        self.assertIn("missing", statuses)
+        self.assertNotIn("unreachable", statuses)
+        self.assertEqual(code, 1, "a missing release blocks even when unreachable is allowed")
+
+    def test_unreachable_does_not_also_report_an_empty_resource_list(self):
+        package = self.github_package()
+        limit = urllib.error.HTTPError(
+            "https://api.github.com/repos/owner/repo/releases", 403, "rate limit exceeded", {}, None
+        )
+        with mock.patch("fetch_assets.fetch_json", side_effect=limit):
+            _, plan = self.run_plan([package], allow_unreachable=True)
+        reasons = [e["reason"] for e in plan["errors"]]
+        self.assertFalse(
+            [r for r in reasons if "no required resource was planned" in r],
+            "the empty request list is a consequence of the limit, not a second fault",
+        )
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 pkgname = bind-dig
 appname = bind-dig
-pkgver = 9.20.18
+pkgver = 9.20.26
 pkgrel = 1
 os = openwrt
 platform = all

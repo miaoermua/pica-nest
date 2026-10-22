@@ -2,195 +2,305 @@ name: Pica Package Build and Release
 
 on:
   push:
+    branches: [main]
     paths:
       - 'src/**'
       - 'ci/**'
       - 'schema/**'
       - '.github/scripts/**'
       - '.github/workflows/**'
-  schedule:
-    # Cron: every day at 04:17 UTC. Upstream releases are picked up without a push.
-    - cron: '17 4 * * *'
   workflow_dispatch:
     inputs:
+      packages:
+        description: 'Space-separated src/<mgr>/<pkg> list; empty uses changed packages'
+        required: false
+        type: string
       force_rebuild_all:
-        description: 'Force fully rebuild all packages'
+        description: 'Rebuild every package'
+        required: false
+        type: boolean
+        default: false
+      arch:
+        description: 'Optional target arch; must exist in every selected build.matrix'
+        required: false
+        type: string
+      publish:
+        description: 'Publish the validated artifacts (main branch only)'
         required: false
         type: boolean
         default: false
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: pica-build-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    uses: ./.github/workflows/validate.yml
+
   build:
+    needs: validate
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      has_artifacts: ${{ steps.dist.outputs.has_artifacts }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          # The change range is computed from event.before, which may be several
-          # commits back; a shallow clone cannot resolve it.
           fetch-depth: 0
 
-      - name: Detect changed packages
+      - name: Detect packages to build
         id: detect
         env:
           EVENT_NAME: ${{ github.event_name }}
           BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
           FORCE_REBUILD: ${{ github.event.inputs.force_rebuild_all }}
+          MANUAL_PACKAGES: ${{ github.event.inputs.packages }}
         run: |
-          if [ "$EVENT_NAME" = "schedule" ]; then
-            python3 .github/scripts/changed_packages.py \
-              --force-rebuild-all --github-output "$GITHUB_OUTPUT"
-          elif [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            if [ "$FORCE_REBUILD" = "true" ]; then
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            if [ -n "$MANUAL_PACKAGES" ]; then
+              python3 .github/scripts/changed_packages.py \
+                --packages "$MANUAL_PACKAGES" --github-output "$GITHUB_OUTPUT"
+            elif [ "$FORCE_REBUILD" = "true" ]; then
               python3 .github/scripts/changed_packages.py \
                 --force-rebuild-all --github-output "$GITHUB_OUTPUT"
             else
-              # A manual run has no reliable diff range; validate globally
-              # instead of silently rebuilding nothing.
-              python3 .github/scripts/changed_packages.py \
-                --full-validation-only --github-output "$GITHUB_OUTPUT"
+              echo "error: manual runs must name packages or set force_rebuild_all" >&2
+              exit 1
             fi
           else
             python3 .github/scripts/changed_packages.py \
               --base "$BEFORE_SHA" --head "$HEAD_SHA" \
               --github-output "$GITHUB_OUTPUT"
           fi
+
       - name: Checkout pica source
+        id: pica
         uses: actions/checkout@v4
         with:
           repository: miaoermua/pica
-          # TEMPORARY: pica 0.3.33 (scripts/ layout, explicit -opkg/-apk/-pica
-          # suffixes) is on the `apk` branch. `main` is still 0.3.0 and its
-          # packer requires a `cmd/` directory that this repository no longer
-          # has. Drop this ref once 0.3.33 is merged to main.
+          # TEMPORARY: 0.3.33 is on the `apk` branch; main is still 0.3.0.
           ref: apk
           path: pica-source
+
+      - name: Resolve pica commit
+        id: pica_sha
+        run: echo "sha=$(git -C pica-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pica-pack for this pica commit
+        id: pica_cache
+        uses: actions/cache@v4
+        with:
+          path: pica-source/target/release/pica-pack
+          key: pica-pack-${{ runner.os }}-${{ steps.pica_sha.outputs.sha }}
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build and Install pica-pack
+      - name: Build pica-pack
+        if: steps.pica_cache.outputs.cache-hit != 'true'
         run: |
-          echo "Compiling pica-pack from miaoermua/pica..."
           cd pica-source
           cargo build --release --bin pica-pack
-          sudo mv target/release/pica-pack /usr/local/bin/pica-pack
+
+      - name: Install pica-pack
+        run: sudo cp pica-source/target/release/pica-pack /usr/local/bin/pica-pack
 
       - name: Install Python requirements
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install jsonschema
+        run: python -m pip install jsonschema
 
-      - name: Test change detection mapping
-        run: python3 .github/scripts/test_changed_packages.py
-
-      - name: Test asset source mapping
-        run: python3 .github/scripts/test_fetch_assets.py
-
-      - name: Validate repository configuration
-        run: |
-          # Catches bad mgr/targets/include_dirs before a build wastes time.
-          python3 .github/scripts/validate_repo.py
-
-      - name: Full validation (shared CI inputs changed)
-        if: steps.detect.outputs.full_validation == 'true'
-        run: |
-          # A schema, workflow or script change invalidates every job's
-          # assumptions; validate them all without repackaging everything.
-          python3 -m py_compile .github/scripts/*.py
-          python3 .github/scripts/validate_repo.py --check-pairs
-
-      - name: Preflight and stage all assets
+      - name: Plan resources without downloading
+        if: steps.detect.outputs.packages != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           STAGE_ROOT: ${{ runner.temp }}/pica-stage
+          PLAN_PATH: ${{ runner.temp }}/pica-plan.json
+          PACKAGES: ${{ steps.detect.outputs.packages }}
+          ARCH: ${{ github.event.inputs.arch }}
         run: |
           set -euo pipefail
           rm -rf "$STAGE_ROOT"
-          python3 .github/scripts/fetch_assets.py --preflight \
+          ARGS=()
+          if [ -n "$ARCH" ]; then
+            ARGS+=(--arch "$ARCH")
+          fi
+          python3 .github/scripts/fetch_assets.py --plan --probe \
             --stage-root "$STAGE_ROOT" \
-            --plan-output "$STAGE_ROOT/plan.json" \
-            ${{ steps.detect.outputs.packages }}
+            --plan-output "$PLAN_PATH" \
+            "${ARGS[@]}" $PACKAGES
+
+      - name: Restore asset cache
+        if: steps.detect.outputs.packages != ''
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pica-assets
+          key: pica-assets-${{ runner.os }}-${{ hashFiles('ci/**/build.json', 'src/**/manifest') }}
+          restore-keys: pica-assets-${{ runner.os }}-
+
+      - name: Fetch the planned resources
+        if: steps.detect.outputs.packages != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLAN_PATH: ${{ runner.temp }}/pica-plan.json
+        run: |
+          python3 .github/scripts/fetch_assets.py --fetch-plan "$PLAN_PATH" \
+            --cache-dir "$HOME/.cache/pica-assets"
 
       - name: Build Staged Packages
+        if: steps.detect.outputs.packages != ''
+        env:
+          PLAN_PATH: ${{ runner.temp }}/pica-plan.json
         run: |
           set -euo pipefail
           mkdir -p build_output
-          DIRS_TO_BUILD="${{ steps.detect.outputs.packages }}"
-          STAGE_ROOT="${{ runner.temp }}/pica-stage"
-
-          if [ -z "$DIRS_TO_BUILD" ]; then
-            echo "No packages selected for rebuild."
-            exit 0
-          fi
-
-          for dir in $DIRS_TO_BUILD; do
-            PKG_MGR=$(basename "$(dirname "$dir")")
-            PKG_ID=$(basename "$dir")
-            STAGE="$STAGE_ROOT/$PKG_MGR/$PKG_ID"
-
-            if [ ! -f "$STAGE/manifest" ]; then
-              echo "error: preflight did not stage $dir at $STAGE" >&2
-              exit 1
-            fi
-
+          python3 -c 'import json,sys; [print(p["stage"]) for p in json.load(open(sys.argv[1]))["packages"]]' \
+            "$PLAN_PATH" > "$RUNNER_TEMP/stages.txt"
+          while IFS= read -r STAGE; do
+            [ -n "$STAGE" ] || continue
             echo "Building package in $STAGE..."
             pica-pack build "$STAGE" --outdir build_output
-          done
+          done < "$RUNNER_TEMP/stages.txt"
 
-      - name: Generate Repository Index
+      - name: Generate and verify repository index
+        if: steps.detect.outputs.packages != ''
         run: |
-          # Ensure r/ exists
+          set -euo pipefail
           mkdir -p r
-          # pica-pack writes one repo.json per backend under build_output/<backend>/.
-          # gen_repo_index.py merges them into r/repo.json and copies artifacts
-          # to r/packages/ where `pica -S` looks for them.
-          if ls build_output/*/repo.json > /dev/null 2>&1; then
-            python3 .github/scripts/gen_repo_index.py build_output/*/repo.json
+          if [ ! -f r/repo.json ]; then
+            printf '{"schema": 2, "packages": []}\n' > r/repo.json
+          fi
+          if ! ls build_output/*/repo.json > /dev/null 2>&1; then
+            echo "error: no package was built" >&2
+            exit 1
+          fi
+          python3 .github/scripts/gen_repo_index.py build_output/*/repo.json \
+            --release-list r/release-files.txt
+          python3 .github/scripts/validate_repo.py --quiet
+          python3 .github/scripts/verify_artifacts.py \
+            --index r/repo.json \
+            --packages-dir r/packages \
+            --require-file r/release-files.txt
+
+      - name: Prepare validated publish artifact
+        id: dist
+        if: steps.detect.outputs.packages != ''
+        run: |
+          set -euo pipefail
+          mkdir -p dist/packages dist/build_output
+          cp r/repo.json dist/repo.json
+          cp r/release-files.txt dist/release-files.txt
+          while IFS= read -r artifact; do
+            [ -n "$artifact" ] || continue
+            if [ ! -f "$artifact" ]; then
+              echo "error: release artifact is missing: $artifact" >&2
+              exit 1
+            fi
+            cp "$artifact" dist/packages/
+          done < r/release-files.txt
+          for repo in build_output/*/repo.json; do
+            backend=$(basename "$(dirname "$repo")")
+            mkdir -p "dist/build_output/$backend"
+            cp "$repo" "dist/build_output/$backend/repo.json"
+          done
+          if [ -s r/release-files.txt ]; then
+            echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
           else
-            echo "No packages were built."
+            echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Validate generated index
-        run: python3 .github/scripts/validate_repo.py --quiet
+      - name: Upload validated publish artifact
+        if: steps.dist.outputs.has_artifacts == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pica-dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: >-
+      needs.build.outputs.has_artifacts == 'true' &&
+      (github.event_name == 'push' ||
+       (github.event.inputs.publish == 'true' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Download validated artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pica-dist
+          path: dist
+
+      - name: Merge into the current index and verify
+        run: |
+          set -euo pipefail
+          if [ ! -f r/repo.json ]; then
+            printf '{"schema": 2, "packages": []}\n' > r/repo.json
+          fi
+          python3 .github/scripts/gen_repo_index.py --no-copy dist/build_output/*/repo.json
+          mkdir -p r/packages
+          cp -a dist/packages/. r/packages/
+          python3 .github/scripts/verify_artifacts.py \
+            --index r/repo.json \
+            --packages-dir r/packages \
+            --require-file dist/release-files.txt
+
+      - name: Commit validated artifacts and index
+        id: commit
+        run: |
+          set -euo pipefail
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add r/repo.json
+          git add r/packages
+          if git diff --staged --quiet; then
+            echo "No changes to r/ to commit."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -m "chore: auto-update r/repo.json and r/packages [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Expose release file list
+        id: release_files
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          {
+            echo 'files<<EOF'
+            cat dist/release-files.txt
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Generate Release Tag
-        id: date
+        if: steps.commit.outputs.changed == 'true'
         run: echo "RELEASE_TAG=$(date +'%y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
 
       - name: Create Snapshot Release
         uses: softprops/action-gh-release@v2
-        if: success() && steps.detect.outputs.packages != '' && hashFiles('r/packages/*.pkg.tar.gz') != ''
+        if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
-          files: r/packages/*.pkg.tar.gz
+          files: ${{ steps.release_files.outputs.files }}
 
       - name: Update Rolling Latest Release
         uses: softprops/action-gh-release@v2
-        if: success() && steps.detect.outputs.packages != '' && hashFiles('r/packages/*.pkg.tar.gz') != ''
+        if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: latest
           name: Latest Packages
-          files: r/packages/*.pkg.tar.gz
-
-      - name: Commit generated index and artifacts
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          # A workflow-only (or validation-only) run builds nothing, so
-          # r/packages may not exist; `git add` on a missing path is fatal.
-          git add r/repo.json
-          if [ -d r/packages ]; then
-            git add r/packages
-          fi
-          if git diff --staged --quiet; then
-            echo "No changes to r/ to commit."
-          else
-            git commit -m "chore: auto-update r/repo.json and r/packages [skip ci]"
-            git push origin "$GITHUB_REF_NAME"
-          fi
+          files: ${{ steps.release_files.outputs.files }}

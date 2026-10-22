@@ -1,6 +1,6 @@
 pkgname = tailscale-bin
 appname = tailscale
-pkgver = 1.104.1
+pkgver = 1.104.2
 pkgrel = 1
 os = openwrt
 platform = amd64

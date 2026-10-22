@@ -18,3 +18,5 @@ type = luci
 luci = lua1
 targets = opkg
 app = ddns-go
+app = luci-app-ddns-go
+app_i18n = luci-i18n-ddns-go-{lang}

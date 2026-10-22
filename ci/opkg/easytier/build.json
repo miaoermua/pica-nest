@@ -18,7 +18,7 @@
           "name": "easytier-pkg",
           "role": "app",
           "regex": "^EasyTier-v2\\.5\\.0-(.*)-22\\.03\\.7\\.zip$",
-          "inner_regex": "luci-app-easytier.*\\.ipk$",
+          "inner_regex": "^(?:easytier(?!-noweb)|luci-app-easytier|luci-i18n-easytier).*\\.ipk$",
           "required": true,
           "capture_to": {
             "arch": 1
