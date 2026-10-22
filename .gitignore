@@ -22,3 +22,6 @@ __pycache__/
 
 .codebuddy/*
 .workbuddy/*
+
+# macOS Finder metadata
+.DS_Store

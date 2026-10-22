@@ -15,4 +15,4 @@ visibility = open
 packager = pica-pack
 type = cli
 targets = opkg
-app = ua-mask
+app = UAmask

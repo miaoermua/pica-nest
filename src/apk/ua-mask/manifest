@@ -15,7 +15,7 @@ visibility = open
 packager = pica-pack
 type = cli
 targets = apk
-app = ua-mask
+app = UAmask
 
 # The upstream ipk records this; the apk carries its own copy and pica checks
 # the declaration before handing the container to the system package manager.
