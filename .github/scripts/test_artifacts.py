@@ -59,6 +59,37 @@ class ArtifactVerificationTest(unittest.TestCase):
             cwd=self.root, capture_output=True, text=True,
         )
 
+    def test_a_script_installed_native_package_passes(self):
+        """A native package may install itself through scripts instead of a container.
+
+        cattools does this: `targets = opkg, pica`, its runtime dependencies
+        handed to opkg as `base@opkg = bash`, and its payload delivered by
+        `scripts/install`. There is deliberately no `.ipk` for it to carry, and
+        demanding one would report an artifact the packer built as empty.
+        """
+        filename = "demo-1.0.0-1-x86_64-opkg.pkg.tar.gz"
+        make_artifact(
+            self.packages / filename,
+            "pkgname = demo\npkgver = 1.0.0\npkgrel = 1\nplatform = all\narch = x86_64\npkgmgr = opkg\n",
+            {"scripts/install": b"#!/bin/sh\n", "root/usr/bin/demo": b"binary"},
+        )
+        self.write_index(filename, pkgmgr="opkg")
+        result = self.run_verify("--strict-all")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_an_artifact_with_nothing_installable_fails(self):
+        """A manifest alone installs nothing, whatever the backend."""
+        filename = "demo-1.0.0-1-x86_64-opkg.pkg.tar.gz"
+        make_artifact(
+            self.packages / filename,
+            "pkgname = demo\npkgver = 1.0.0\npkgrel = 1\nplatform = all\narch = x86_64\npkgmgr = opkg\n",
+            {},
+        )
+        self.write_index(filename, pkgmgr="opkg")
+        result = self.run_verify("--strict-all")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("no payload", result.stderr)
+
     def test_a_matching_artifact_passes(self):
         filename = "demo-1.0.0-1-x86_64-pica.pkg.tar.gz"
         make_artifact(

@@ -111,12 +111,23 @@ def verify_one(pkg, packages_dir, required, errors, warnings):
             )
 
     manager = pkg.get("pkgmgr")
-    if manager in ("opkg", "apk"):
-        has_payload = any(name.startswith("pkgs/") for name in members)
-    else:
-        has_payload = any(name.startswith(("root/", "scripts/")) for name in members)
+    # Ask the packer's question, not a stricter one: can this artifact install
+    # anything? `pica-pack` accepts a package that ships containers for its
+    # backend, `root/` files, or `scripts/` that install it, and refuses only
+    # when none of the three is present.
+    #
+    # Requiring `pkgs/` from every native backend gets that wrong. cattools
+    # declares `targets = opkg, pica` with its runtime dependencies handed to
+    # opkg (`base@opkg = bash` …) and its payload delivered by `scripts/install`
+    # — there is deliberately no `.ipk` for it to carry. The packer built it;
+    # this check called it empty.
+    has_payload = any(
+        name.startswith(("pkgs/", "root/", "scripts/")) for name in members
+    )
     if not has_payload:
-        problem.append(f"{relative}: no payload directory for {manager}")
+        problem.append(
+            f"{relative}: no payload (none of pkgs/, root/ or scripts/) for {manager}"
+        )
 
     expected = expected_filename(pkg)
     if expected and expected != filename:
