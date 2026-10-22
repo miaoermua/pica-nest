@@ -18,6 +18,7 @@ from fetch_assets import (  # noqa: E402
     plan_http_assets,
     plan_tarball_assets,
 )
+from container_metadata import declares_package  # noqa: E402
 
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fetch_assets.py")
 
@@ -170,6 +171,39 @@ class PlanTest(unittest.TestCase):
         self.assertEqual(requests, [])
         self.assertEqual(errors, [])
         self.assertEqual(len(optional), 1)
+
+    def test_github_arch_map_maps_a_captured_arch_to_the_matrix_arch(self):
+        release = {
+            "tag_name": "v1",
+            "assets": [{"name": "demo-1.0-r1-aarch64.ipk", "browser_download_url": "https://x/a.ipk", "size": 10}],
+        }
+        config = {
+            "mgr": "opkg",
+            "source": {
+                "arch_map": {"aarch64": "aarch64_generic"},
+                "release": {"assets": [
+                    {"name": "demo", "regex": r"^demo-.*-r[0-9]+-(.+?)\.ipk$",
+                     "capture_to": {"arch": 1}}
+                ]},
+            },
+            "build": {"matrix": [{"platform": "arm64", "arch": "aarch64_generic"}]},
+        }
+        requests, errors, _, _ = plan_github_assets(release, config, "/stage", "demo")
+        self.assertEqual(errors, [])
+        self.assertEqual([request["arch"] for request in requests], ["aarch64_generic"])
+        self.assertTrue(requests[0]["dest"].endswith("/arm64/aarch64_generic/demo-1.0-r1-aarch64.ipk"))
+
+
+class DeclaredPackageTest(unittest.TestCase):
+    def test_app_i18n_template_matches_a_language_package(self):
+        declared = {
+            "app": {"zerotier"},
+            "base": set(),
+            "kmod": set(),
+            "app_i18n": {"luci-i18n-zerotier-{lang}"},
+        }
+        self.assertTrue(declares_package(declared, "luci-i18n-zerotier-zh-cn"))
+        self.assertFalse(declares_package(declared, "luci-i18n-other-zh-cn"))
 
     def test_tarball_plan_rejects_multiple_matrix_arches(self):
         config = {

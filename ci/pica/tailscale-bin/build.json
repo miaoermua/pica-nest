@@ -36,22 +36,6 @@
       {
         "platform": "amd64",
         "arch": "x86_64"
-      },
-      {
-        "platform": "arm64",
-        "arch": "aarch64_generic"
-      },
-      {
-        "platform": "arm64",
-        "arch": "aarch64_cortex-a53"
-      },
-      {
-        "platform": "arm64",
-        "arch": "aarch64_cortex-a72"
-      },
-      {
-        "platform": "mipsel",
-        "arch": "mipsel_24kc"
       }
     ],
     "include_dirs": [

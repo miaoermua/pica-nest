@@ -29,7 +29,7 @@ import tempfile
 # APK signature block of the apk-tools 3.x (ADB) format, which tar cannot open.
 ADB_SIGNATURE = b"ADBd"
 
-DEPENDENCY_KEYS = ("app", "base", "kmod")
+DEPENDENCY_KEYS = ("app", "base", "kmod", "app_i18n")
 
 
 def _extract(path, dest):
@@ -153,11 +153,13 @@ def container_metadata(path):
 
 
 def manifest_dependencies(manifest_path):
-    """Map each dependency key to every value declared for it.
+    """Map each declared key to every value declared for it.
 
     A manifest may declare `app = a` twice, or a backend-scoped
     `app@opkg = b` / arch-scoped `app.<arch> = c`, so all scoped forms are
-    collected under their base key.
+    collected under their base key. `app_i18n` is collected with its `{lang}`
+    template intact; [`declares_package`] matches it against a concrete
+    language package.
     """
     declared = {key: set() for key in DEPENDENCY_KEYS}
     if not os.path.isfile(manifest_path):
@@ -173,6 +175,22 @@ def manifest_dependencies(manifest_path):
             if key in declared and value.strip():
                 declared[key].add(value.strip())
     return declared
+
+
+def declares_package(declared, name):
+    """Whether a manifest declares `name` as an app/base/kmod/i18n package.
+
+    `app_i18n` is a template (`luci-i18n-demo-{lang}`), so the language segment
+    is matched as a wildcard rather than requiring the template literally.
+    """
+    known = declared.get("app", set()) | declared.get("base", set()) | declared.get("kmod", set())
+    if name in known:
+        return True
+    for template in declared.get("app_i18n", ()):
+        pattern = "^" + re.escape(template).replace(re.escape("{lang}"), ".+") + "$"
+        if re.match(pattern, name):
+            return True
+    return False
 
 
 def check_downloaded(pkg_dir, build_config):
@@ -196,6 +214,7 @@ def check_downloaded(pkg_dir, build_config):
     skipped = []
     if not os.path.isdir(pkgs_root):
         return problems, skipped
+    has_declarations = any(declared.values())
 
     for platform in sorted(os.listdir(pkgs_root)):
         platform_dir = os.path.join(pkgs_root, platform)
@@ -214,7 +233,7 @@ def check_downloaded(pkg_dir, build_config):
                     # An unreadable container is not proof of a mismatch; only a
                     # confirmed mismatch should fail the build.
                     skipped.append(f"{platform}/{arch}/{entry}")
-                elif known and name not in known:
+                elif has_declarations and not declares_package(declared, name):
                     problems.append(
                         f"{platform}/{arch}/{entry}: installs as '{name}', which the manifest does not"
                         f" declare. Add it (app/base/kmod, or '<key>.{arch} =' when it varies by arch)"

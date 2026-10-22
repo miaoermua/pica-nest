@@ -7,6 +7,9 @@
   "source": {
     "provider": "github",
     "repo": "canmi21/vane",
+    "arch_map": {
+      "aarch64": "aarch64_generic"
+    },
     "release": {
       "tag": {
         "mode": "regex",
@@ -44,7 +47,7 @@
       },
       {
         "platform": "arm64",
-        "arch": "aarch64"
+        "arch": "aarch64_generic"
       }
     ],
     "include_dirs": [
