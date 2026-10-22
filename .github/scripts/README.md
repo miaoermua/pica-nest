@@ -10,6 +10,7 @@
 *   **GitHub Provider**: 通过 GitHub API 抓取指定 Release 各架构的资产。
 *   **HTTP Template Provider**: 通过 URL 模板（如北大镜像站）批量拼接下载链接。
 *   **落位规则**: 抓到的资产放入 `pkgs/<mgr>/<platform>/<arch>/`，其中 `<mgr>` 取自 build.json 的 `mgr`，需与 manifest 的 `targets` 一致。
+*   **全局预检**: `fetch_assets.py --preflight --stage-root DIR <src/mgr/pkg>...` 对一批包做静态检查、真实下载和下载后验证，全部通过才以 0 退出；workflow 只在这个阶段成功后才调用 `pica-pack`。它不修改仓库源码，资源落在独立的 stage 目录。
 
 ### 2. `gen_repo_index.py` (索引聚合器)
 它是仓库的“索引师”，负责在每个 CI 周期完成后，扫描 `build_output` 下的所有包，合并生成单一的 `repo.json` 索引文件。
@@ -53,6 +54,8 @@
 ```
 *   **{arch}**: 会自动被 `build.matrix` 里的架构替换。
 *   **{version}**: 会自动被 `source.version` 替换。
+*   **按架构覆盖 URL**（可选，仅 `http_template`）：`source.arch_url_templates` 以 `build.matrix` 的 `arch` 为键；
+    命中该架构时，列出的 URL **替换**公共 `url_template(s)`，其它架构继续用公共列表。用于某个架构要取不同版本/地址的场景。
 
 ---
 

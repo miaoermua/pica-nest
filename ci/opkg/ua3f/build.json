@@ -17,11 +17,10 @@
         {
           "name": "ua3f",
           "role": "app",
-          "regex": "^ua3f_[0-9].*_(.*)\\.ipk$",
+          "regex": "^ua3f_[0-9].*-r?[0-9]+[_-]([A-Za-z0-9_+.-]+)\\.ipk$",
           "required": true,
-          "target": {
-            "platform": "amd64",
-            "arch": "x86_64"
+          "capture_to": {
+            "arch": 1
           }
         }
       ]

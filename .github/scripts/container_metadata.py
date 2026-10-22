@@ -16,8 +16,8 @@ only tool that provides one. When that is unavailable the check is skipped
 with a warning instead of guessing from the filename, because a guessed name
 would defeat the purpose of the check.
 
-Only the package name is read; dependency metadata is deliberately ignored
-because no backend in this repository resolves dependency graphs.
+The package name and architecture are read; dependency metadata is deliberately
+ignored because no backend in this repository resolves dependency graphs.
 """
 import os
 import re
@@ -122,6 +122,18 @@ def container_pkgname(path):
     Only the package name is read here; dependency metadata is deliberately
     ignored because no backend in this repo resolves dependency graphs.
     """
+    metadata = container_metadata(path)
+    return metadata["package"] if metadata else None
+
+
+def container_metadata(path):
+    """Return the `Package:` and `Architecture:` of a container, or None.
+
+    `None` means the container could not be read: an ADB-format apk (apk-tools
+    3.x), a corrupt archive, or a missing `tar`. That is a distinct outcome
+    from "read and found no metadata"; callers report it as unverified instead
+    of treating it as a successful check.
+    """
     extension = os.path.splitext(path)[1].lower()
     if extension not in (".ipk", ".apk"):
         return None
@@ -130,15 +142,22 @@ def container_pkgname(path):
         text = _read_apk_control(path, tmp) if extension == ".apk" else _read_ipk_control(path, tmp)
         if not text:
             return None
-        match = re.search(r"^Package:\s*(\S+)\s*$", text, re.MULTILINE)
-        return match.group(1) if match else None
+        package = re.search(r"^Package:\s*(\S+)\s*$", text, re.MULTILINE)
+        architecture = re.search(r"^Architecture:\s*(\S+)\s*$", text, re.MULTILINE)
+        if package is None and architecture is None:
+            return None
+        return {
+            "package": package.group(1) if package else None,
+            "architecture": architecture.group(1) if architecture else None,
+        }
 
 
 def manifest_dependencies(manifest_path):
     """Map each dependency key to every value declared for it.
 
-    A manifest may declare `app = a` twice, or the backend-scoped
-    `app.<arch> = b`, so both plain and scoped forms are collected.
+    A manifest may declare `app = a` twice, or a backend-scoped
+    `app@opkg = b` / arch-scoped `app.<arch> = c`, so all scoped forms are
+    collected under their base key.
     """
     declared = {key: set() for key in DEPENDENCY_KEYS}
     if not os.path.isfile(manifest_path):
@@ -150,10 +169,9 @@ def manifest_dependencies(manifest_path):
             if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, value = line.partition("=")
-            key = key.strip()
-            base = key.split(".", 1)[0]
-            if base in declared and value.strip():
-                declared[base].add(value.strip())
+            key = key.strip().split(".", 1)[0].split("@", 1)[0]
+            if key in declared and value.strip():
+                declared[key].add(value.strip())
     return declared
 
 

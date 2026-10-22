@@ -47,6 +47,14 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "arch_url_templates": {
+          "type": "object",
+          "description": "Per-architecture URL templates, read only by the http_template provider. When an arch has an entry, those templates replace url_template/url_templates for that arch, so one architecture can fetch a different version without that URL being downloaded into every other architecture's directory. Arches without an entry keep the common list. Keys are build.matrix arch values.",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        },
         "strip_components": {
           "type": "integer",
           "minimum": 0,

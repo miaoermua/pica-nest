@@ -17,11 +17,10 @@
         {
           "name": "ua-mask",
           "role": "app",
-          "regex": "^UAmask-[0-9].*-r[0-9]+_.*\\.apk$",
+          "regex": "^UAmask-[0-9].*-r[0-9]+[_-]([A-Za-z0-9_+.-]+)\\.apk$",
           "required": true,
-          "target": {
-            "platform": "amd64",
-            "arch": "x86_64"
+          "capture_to": {
+            "arch": 1
           }
         }
       ]
