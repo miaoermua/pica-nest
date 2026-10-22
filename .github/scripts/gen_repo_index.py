@@ -6,7 +6,19 @@ from `pica_pkg_core::manifest::Manifest`. That output is the authority on what
 went into a package: it carries the required `pkgmgr`, keeps repeated manifest
 fields such as `base`/`app` as arrays, and derives the filename suffix from
 `pkgmgr`. Re-parsing manifests here would undo all of that, so this script only
-merges, validates and copies.
+merges, validates and rewrites URLs.
+
+Artifacts are **not** copied anywhere. The distribution design keeps binaries
+in GitHub Releases; the repository tracks metadata only. The client resolves a
+package in one of two ways (`pica-pkg-cli`):
+
+* `download_url`, when present and a supported URL;
+* otherwise `<repo>/packages/<filename>`.
+
+The second form is why a `r/packages/` tree once appeared — the index left
+`download_url` null, so the only way to satisfy the fallback was to commit the
+archives. `--download-base` removes that pressure: every entry is stamped with
+an absolute asset URL, so no client ever asks the repository for a binary.
 
 Packages are keyed by `(pkgmgr, pkgname, platform, arch)`. All four are part of
 a package's identity:
@@ -14,18 +26,17 @@ a package's identity:
 * `pkgmgr` — the same application may be published once per backend.
 * `platform`/`arch` — one job builds a package for several architectures, and
   each produces its own artifact with its own filename. Keying without them
-  collapses five artifacts onto one entry, so four of them reach `r/packages/`
-  with nowhere in the index to be named, and the survivors overwrite each other
-  in matrix order — which is an arbitrary architecture winning, not a choice.
+  collapses five artifacts onto one entry, so four of them have no entry naming
+  them and the survivors overwrite each other in matrix order — which is an
+  arbitrary architecture winning, not a choice.
 
 Usage:
-    gen_repo_index.py [--repo REPO_JSON] <repo.json> [<repo.json> ...]
+    gen_repo_index.py --download-base URL [--repo REPO_JSON] <repo.json>...
 """
 import argparse
 import datetime
 import json
 import os
-import shutil
 import sys
 
 # Mirrors REPO_SCHEMA in crates/pica-pkg-core/src/repo.rs.
@@ -81,34 +92,62 @@ def describe(key):
     return f"{pkgname} ({pkgmgr})"
 
 
-def copy_artifacts(index, source_dir, repo_dir):
-    """Place each package file where `pica -S` looks for it.
+def asset_url(base, filename):
+    """The Release asset URL a client should fetch this artifact from."""
+    return f"{base.rstrip('/')}/{filename}"
 
-    `pica -S` fetches `<repo>/repo.json` and then `<repo>/packages/<filename>`,
-    so artifacts have to travel with the index instead of staying in the CI
-    workspace.
+
+def locate_artifact(source_dir, filename, extra_dirs):
+    """Find an artifact, preferring the directory its repo.json sits in.
+
+    `pica-pack` writes both together. The publish job restores them separately
+    (`dist/build_output/<backend>/repo.json`, `dist/packages/<file>`), so the
+    artifact directories are passed in as well.
     """
-    packages_dir = os.path.join(repo_dir, "packages")
-    os.makedirs(packages_dir, exist_ok=True)
-
-    for pkg in index["packages"]:
-        source = os.path.join(source_dir, pkg["filename"])
-        if os.path.isfile(source):
-            shutil.copy2(source, os.path.join(packages_dir, pkg["filename"]))
-        else:
-            print(f"warning: {pkg['pkgname']}: artifact missing, index will point at {pkg['filename']}")
+    for directory in (source_dir, *extra_dirs):
+        candidate = os.path.join(directory, filename)
+        if os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 def main():
     parser = argparse.ArgumentParser(description="Merge pica-pack repo.json files into one index.")
-    parser.add_argument("inputs", nargs="+", help="repo.json files written by pica-pack")
+    parser.add_argument(
+        "inputs",
+        nargs="*",
+        help=(
+            "repo.json files written by pica-pack; none is accepted with"
+            " --download-base to re-stamp an existing index in place"
+        ),
+    )
     parser.add_argument("--repo", default=DEFAULT_REPO_JSON, help="merged index to write")
-    parser.add_argument("--no-copy", action="store_true", help="skip copying artifacts next to the index")
+    parser.add_argument(
+        "--download-base",
+        help=(
+            "base URL that artifacts are published under; every entry gets"
+            " download_url=<base>/<filename> so clients never fall back to"
+            " <repo>/packages/<filename>"
+        ),
+    )
+    parser.add_argument(
+        "--artifacts-dir",
+        action="append",
+        default=[],
+        help=(
+            "extra directory to look for artifacts in, searched after the"
+            " repo.json's own directory; the publish job stages artifacts and"
+            " index metadata in separate directories"
+        ),
+    )
     parser.add_argument(
         "--release-list",
-        help="write the repo-relative artifacts produced by this run, one per line",
+        help="write the artifacts produced by this run, one repository-relative path per line",
     )
     args = parser.parse_args()
+
+    if not args.inputs and not args.download_base:
+        parser.error("give at least one repo.json, or --download-base to re-stamp the index in place")
 
     if not os.path.isfile(args.repo):
         print(
@@ -118,10 +157,9 @@ def main():
         )
         return 1
 
-    repo_dir = os.path.dirname(os.path.abspath(args.repo))
-
     with open(args.repo, "r", encoding="utf-8") as handle:
         existing = json.load(handle)
+    previous_packages = existing.get("packages", [])
     if existing.get("schema") != REPO_SCHEMA:
         print(
             f"error: {args.repo} is schema {existing.get('schema')!r} but {REPO_SCHEMA} is required."
@@ -131,7 +169,7 @@ def main():
         return 1
 
     merged = {entry_key(pkg): pkg for pkg in existing.get("packages", [])}
-    released = set()
+    released = []
 
     for path in args.inputs:
         try:
@@ -140,26 +178,47 @@ def main():
             print(f"error: {err}", file=sys.stderr)
             return 1
 
-        if not args.no_copy:
-            copy_artifacts(index, os.path.dirname(os.path.abspath(path)), repo_dir)
-
+        # pica-pack writes repo.json next to the artifact it describes.
+        source_dir = os.path.dirname(os.path.abspath(path))
         for pkg in index["packages"]:
-            if not args.no_copy:
-                # The workflow consumes these paths from the repository root.
-                # Basename keeps `r/packages/...` portable across the macOS
-                # `/var` -> `/private/var` symlink and the Linux runner.
-                released.add(os.path.join(os.path.basename(repo_dir), "packages", pkg["filename"]))
+            artifact = locate_artifact(source_dir, pkg["filename"], args.artifacts_dir)
+            if artifact is None:
+                # Publishing an entry whose asset does not exist would hand every
+                # client a URL that 404s. Refuse before the index is rewritten.
+                print(
+                    f"error: {pkg['pkgname']}: artifact is missing: {pkg['filename']}"
+                    f" (looked in {source_dir} and {args.artifacts_dir or 'nowhere else'})",
+                    file=sys.stderr,
+                )
+                return 1
+            # realpath on both sides: getcwd() returns the physical path, so on
+            # hosts where the temp dir sits behind a symlink (macOS /var ->
+            # /private/var) a plain relpath produces a bogus ../../.. chain.
+            released.append(
+                os.path.relpath(os.path.realpath(artifact), os.path.realpath(os.getcwd()))
+            )
             key = entry_key(pkg)
             previous = merged.get(key)
             if previous and previous.get("pkgver") != pkg["pkgver"]:
                 print(f"note: {describe(key)}: {previous.get('pkgver')} -> {pkg['pkgver']}")
             merged[key] = pkg
 
+    if args.download_base:
+        # Applied to every entry, not just this run's: a historical entry with a
+        # null download_url would still push clients onto the /packages/ path,
+        # and its asset lives in the same rolling release.
+        for pkg in merged.values():
+            pkg["download_url"] = asset_url(args.download_base, pkg["filename"])
+
     packages = sorted(merged.values(), key=lambda pkg: (pkg["pkgname"], pkg["pkgmgr"], pkg["platform"], pkg["arch"]))
     existing["packages"] = packages
-    existing["generated_at"] = (
-        datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-    )
+    # Only timestamp a real change. Bumping it unconditionally makes every
+    # rebuild differ, so the publish job can never tell an identical rebuild
+    # from a new version — and commits/releases pile up with no content change.
+    if previous_packages != packages or "generated_at" not in existing:
+        existing["generated_at"] = (
+            datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+        )
     # Repo-level metadata the operator owns.
     existing.setdefault("repo_name", "Pica 官方社区软件源")
     existing.setdefault("repo_desc", "Pica Official Community Software Source")

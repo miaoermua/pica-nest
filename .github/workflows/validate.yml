@@ -47,6 +47,15 @@ jobs:
       - name: Test artifact verification
         run: python3 .github/scripts/test_artifacts.py
 
+      - name: Test the binary guard
+        run: python3 .github/scripts/test_no_binaries.py
+
+      # Hard gate, not a warning: a package archive in the tree means a build
+      # directory leaked into a commit, and rewriting history later is the only
+      # way back. Covers tracked files and anything the commit would add.
+      - name: Refuse build archives in Git
+        run: python3 .github/scripts/check_no_binaries.py
+
       - name: Validate repository configuration
         run: python3 .github/scripts/validate_repo.py --check-pairs
 

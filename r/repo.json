@@ -25,7 +25,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-0.107.76-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 11829023,
       "manifest": {
@@ -79,7 +79,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-0.107.76-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10805892,
       "manifest": {
@@ -133,7 +133,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-0.107.76-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10805923,
       "manifest": {
@@ -187,7 +187,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-0.107.76-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10805802,
       "manifest": {
@@ -241,7 +241,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-0.107.76-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10987175,
       "manifest": {
@@ -295,7 +295,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-1.8.9-1-all-opkg.pkg.tar.gz",
       "size": 270519,
       "csize": 92100,
       "manifest": {
@@ -345,7 +345,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-bin-0.107.57-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 31363662,
       "csize": 10897025,
       "manifest": {
@@ -392,7 +392,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-bin-0.107.57-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 30102614,
       "csize": 10100142,
       "manifest": {
@@ -439,7 +439,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-bin-0.107.57-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 30102614,
       "csize": 10099750,
       "manifest": {
@@ -486,7 +486,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-bin-0.107.57-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 30102614,
       "csize": 10100101,
       "manifest": {
@@ -533,7 +533,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/adguardhome-bin-0.107.57-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 33502542,
       "csize": 10091738,
       "manifest": {
@@ -580,7 +580,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/bind-dig-9.20.26-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 119315,
       "csize": 53395,
       "manifest": {
@@ -627,7 +627,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/bind-dig-9.20.26-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 131555,
       "csize": 55581,
       "manifest": {
@@ -674,7 +674,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/bind-dig-9.20.26-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 131555,
       "csize": 55797,
       "manifest": {
@@ -721,7 +721,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/bind-dig-9.20.26-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 131555,
       "csize": 55791,
       "manifest": {
@@ -768,7 +768,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/bind-dig-9.20.26-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 132467,
       "csize": 53400,
       "manifest": {
@@ -815,7 +815,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/btop-1.4.5-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 1108469,
       "csize": 427554,
       "manifest": {
@@ -862,7 +862,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/btop-1.4.5-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 1062877,
       "csize": 414189,
       "manifest": {
@@ -909,7 +909,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/btop-1.4.5-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 1062877,
       "csize": 414990,
       "manifest": {
@@ -956,7 +956,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/btop-1.4.5-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 1062877,
       "csize": 414984,
       "manifest": {
@@ -1003,7 +1003,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/btop-1.4.5-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 861162,
       "csize": 357668,
       "manifest": {
@@ -1050,7 +1050,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cattools-1.1-2-all-opkg.pkg.tar.gz",
       "size": 136662,
       "csize": 36426,
       "manifest": {
@@ -1105,7 +1105,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cattools-1.1-2-all-pica.pkg.tar.gz",
       "size": 136662,
       "csize": 36426,
       "manifest": {
@@ -1160,7 +1160,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-1.2-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9735125,
       "manifest": {
@@ -1214,7 +1214,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-1.2-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8819289,
       "manifest": {
@@ -1268,7 +1268,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-1.2-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8819241,
       "manifest": {
@@ -1322,7 +1322,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-1.2-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8819443,
       "manifest": {
@@ -1376,7 +1376,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-1.2-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8655493,
       "manifest": {
@@ -1430,7 +1430,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/cloudflared-bin-2026.10.3-1-amd64-x86_64-pica.pkg.tar.gz",
       "size": 40227721,
       "csize": 19960403,
       "manifest": {
@@ -1476,7 +1476,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go-6.9.1-1-all-opkg.pkg.tar.gz",
       "size": 13481,
       "csize": 8989,
       "manifest": {
@@ -1529,7 +1529,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go-6.9.1-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 10335450,
       "csize": 4220354,
       "manifest": {
@@ -1582,7 +1582,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go-6.9.1-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 9901826,
       "csize": 3873018,
       "manifest": {
@@ -1635,7 +1635,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go-6.9.1-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 11103994,
       "csize": 3735109,
       "manifest": {
@@ -1688,7 +1688,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go@immortalwrt-6.11.2-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 10394782,
       "csize": 4247910,
       "manifest": {
@@ -1742,7 +1742,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go@immortalwrt-6.11.2-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 9969350,
       "csize": 3897762,
       "manifest": {
@@ -1796,7 +1796,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go@immortalwrt-6.11.2-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 9969350,
       "csize": 3897526,
       "manifest": {
@@ -1850,7 +1850,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go@immortalwrt-6.11.2-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 9969350,
       "csize": 3897589,
       "manifest": {
@@ -1904,7 +1904,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ddns-go@immortalwrt-6.11.2-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 11171454,
       "csize": 3758072,
       "manifest": {
@@ -1958,7 +1958,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/easytier-2.5.0-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 25650113,
       "csize": 14795350,
       "manifest": {
@@ -2009,7 +2009,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/easytier-2.5.0-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 21884308,
       "csize": 13188064,
       "manifest": {
@@ -2060,7 +2060,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/easytier-2.5.0-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 21884308,
       "csize": 13187993,
       "manifest": {
@@ -2111,7 +2111,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/easytier-2.5.0-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 21884308,
       "csize": 13188054,
       "manifest": {
@@ -2162,7 +2162,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/easytier-2.5.0-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 6789920,
       "csize": 6688272,
       "manifest": {
@@ -2213,7 +2213,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/fastfetch-2.70.0-1-amd64-x86_64-pica.pkg.tar.gz",
       "size": 4499840,
       "csize": 1525749,
       "manifest": {
@@ -2259,7 +2259,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/homebox-bin-0.1.3-1-amd64-x86_64-pica.pkg.tar.gz",
       "size": 9874232,
       "csize": 2909083,
       "manifest": {
@@ -2305,7 +2305,7 @@
       "license": "Apache-2.0",
       "visibility": "mix",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/leigod-acc-1.3.0.30-1-all-opkg.pkg.tar.gz",
       "size": 142652,
       "csize": 124334,
       "manifest": {
@@ -2373,7 +2373,7 @@
       "license": "Apache-2.0",
       "visibility": "mix",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/leigod-acc-1.3.0.30-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 5240894,
       "csize": 5056251,
       "manifest": {
@@ -2441,7 +2441,7 @@
       "license": "Apache-2.0",
       "visibility": "mix",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/leigod-acc-1.3.0.30-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 4735125,
       "csize": 4533715,
       "manifest": {
@@ -2509,7 +2509,7 @@
       "license": "Apache-2.0",
       "visibility": "mix",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/leigod-acc-1.3.0.30-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 4735125,
       "csize": 4533684,
       "manifest": {
@@ -2577,7 +2577,7 @@
       "license": "Apache-2.0",
       "visibility": "mix",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/leigod-acc-1.3.0.30-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 4633844,
       "csize": 4436377,
       "manifest": {
@@ -2645,7 +2645,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-docker-1-12-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 39745793,
       "manifest": {
@@ -2703,7 +2703,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-docker-1-12-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 35605682,
       "manifest": {
@@ -2761,7 +2761,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-docker-1-12-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 35606204,
       "manifest": {
@@ -2819,7 +2819,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-docker-1-12-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 35606462,
       "manifest": {
@@ -2877,7 +2877,7 @@
       "license": "AGPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-dockerman-26.236.50544-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49890535,
       "manifest": {
@@ -2935,7 +2935,7 @@
       "license": "AGPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-dockerman-26.236.50544-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 44677972,
       "manifest": {
@@ -2993,7 +2993,7 @@
       "license": "AGPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-dockerman-26.236.50544-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 44678598,
       "manifest": {
@@ -3051,7 +3051,7 @@
       "license": "AGPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-dockerman-26.236.50544-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 44679129,
       "manifest": {
@@ -3109,7 +3109,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frpc-0.66.0-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6402276,
       "manifest": {
@@ -3163,7 +3163,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frpc-0.66.0-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 5673340,
       "manifest": {
@@ -3217,7 +3217,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frpc-0.66.0-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 5673243,
       "manifest": {
@@ -3271,7 +3271,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frpc-0.66.0-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 5673391,
       "manifest": {
@@ -3325,7 +3325,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frpc-0.66.0-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 5685585,
       "manifest": {
@@ -3379,7 +3379,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frps-0.66.0-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 7919778,
       "manifest": {
@@ -3433,7 +3433,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frps-0.66.0-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 7056828,
       "manifest": {
@@ -3487,7 +3487,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frps-0.66.0-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 7056898,
       "manifest": {
@@ -3541,7 +3541,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frps-0.66.0-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 7056946,
       "manifest": {
@@ -3595,7 +3595,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-frps-0.66.0-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 7020726,
       "manifest": {
@@ -3649,7 +3649,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-tailscale-community-1.102.2-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 11745452,
       "manifest": {
@@ -3704,7 +3704,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-tailscale-community-1.102.2-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10651616,
       "manifest": {
@@ -3759,7 +3759,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-tailscale-community-1.102.2-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10653176,
       "manifest": {
@@ -3814,7 +3814,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-tailscale-community-1.102.2-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10652967,
       "manifest": {
@@ -3869,7 +3869,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-app-tailscale-community-1.102.2-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 10556222,
       "manifest": {
@@ -3924,7 +3924,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-compat-26.236.50544-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49296,
       "manifest": {
@@ -3975,7 +3975,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-compat-26.236.50544-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49311,
       "manifest": {
@@ -4026,7 +4026,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-compat-26.236.50544-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49307,
       "manifest": {
@@ -4077,7 +4077,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-compat-26.236.50544-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49305,
       "manifest": {
@@ -4128,7 +4128,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-compat-26.236.50544-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 49308,
       "manifest": {
@@ -4179,7 +4179,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-alpha-3.9.7_beta2-10-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 2928568,
       "manifest": {
@@ -4232,7 +4232,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-alpha-3.9.7_beta2-10-all-opkg.pkg.tar.gz",
       "size": 3433781,
       "csize": 2929224,
       "manifest": {
@@ -4285,7 +4285,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-argon-3.0.0-2-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 297807,
       "manifest": {
@@ -4335,7 +4335,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-aurora-1.4.0-r20260920-1-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 185572,
       "manifest": {
@@ -4385,7 +4385,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-material3@KawaiiHachimi-26.156.15499~38397ed-1-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 41394,
       "manifest": {
@@ -4436,7 +4436,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-material3@KawaiiHachimi-26.156.15499~38397ed-1-all-opkg.pkg.tar.gz",
       "size": 155605,
       "csize": 41434,
       "manifest": {
@@ -4487,7 +4487,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-material3@michioxd-0.1-r20260703-1-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 162737,
       "manifest": {
@@ -4538,7 +4538,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/luci-theme-material3@michioxd-0.1-r20260703-1-all-opkg.pkg.tar.gz",
       "size": 287169,
       "csize": 163790,
       "manifest": {
@@ -4589,7 +4589,7 @@
       "license": "BSD-2-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/msd_lite-2025.05.02-3-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 79199,
       "manifest": {
@@ -4643,7 +4643,7 @@
       "license": "BSD-2-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/msd_lite-2025.05.02-3-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 77725,
       "manifest": {
@@ -4697,7 +4697,7 @@
       "license": "BSD-2-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/msd_lite-2025.05.02-3-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 77806,
       "manifest": {
@@ -4751,7 +4751,7 @@
       "license": "BSD-2-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/msd_lite-2025.05.02-3-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 77846,
       "manifest": {
@@ -4805,7 +4805,7 @@
       "license": "BSD-2-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/msd_lite-2025.05.02-3-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 71702,
       "manifest": {
@@ -4859,7 +4859,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/nano-9.1-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 147561,
       "csize": 78151,
       "manifest": {
@@ -4906,7 +4906,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/nano-9.1-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 196717,
       "csize": 79799,
       "manifest": {
@@ -4953,7 +4953,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/nano-9.1-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 196717,
       "csize": 79624,
       "manifest": {
@@ -5000,7 +5000,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/nano-9.1-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 196717,
       "csize": 79625,
       "manifest": {
@@ -5047,7 +5047,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/nano-9.1-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 131192,
       "csize": 59753,
       "manifest": {
@@ -5094,7 +5094,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/netdata-1.38.1-3-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9692034,
       "manifest": {
@@ -5148,7 +5148,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/netdata-1.38.1-3-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9685503,
       "manifest": {
@@ -5202,7 +5202,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/netdata-1.38.1-3-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9697824,
       "manifest": {
@@ -5256,7 +5256,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/netdata-1.38.1-3-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9690139,
       "manifest": {
@@ -5310,7 +5310,7 @@
       "license": "GPL-3.0-or-later",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/netdata-1.38.1-3-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 9638844,
       "manifest": {
@@ -5364,7 +5364,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openclash-0.48.002-1-all-opkg.pkg.tar.gz",
       "size": 28843373,
       "csize": 10713070,
       "manifest": {
@@ -5414,7 +5414,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openlist-4.1.10-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 139938076,
       "csize": 50339347,
       "manifest": {
@@ -5468,7 +5468,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openlist-4.1.10-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 136907340,
       "csize": 48189084,
       "manifest": {
@@ -5522,7 +5522,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openlist-4.1.10-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 136907340,
       "csize": 48188790,
       "manifest": {
@@ -5576,7 +5576,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openlist-4.1.10-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 136907340,
       "csize": 48188365,
       "manifest": {
@@ -5630,7 +5630,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/openlist-4.1.10-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 144771596,
       "csize": 47281568,
       "manifest": {
@@ -5684,7 +5684,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/qbittorrent-5.2.3-2-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8886563,
       "manifest": {
@@ -5739,7 +5739,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/qbittorrent-5.2.3-2-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8814413,
       "manifest": {
@@ -5794,7 +5794,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/qbittorrent-5.2.3-2-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8814950,
       "manifest": {
@@ -5849,7 +5849,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/qbittorrent-5.2.3-2-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8814982,
       "manifest": {
@@ -5904,7 +5904,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/qbittorrent-5.2.3-2-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 8759084,
       "manifest": {
@@ -5959,7 +5959,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd-3.17.2-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 611356,
       "csize": 465782,
       "manifest": {
@@ -6009,7 +6009,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd-3.17.2-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 603155,
       "csize": 451478,
       "manifest": {
@@ -6059,7 +6059,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd@jarod360-20251127-2-all-opkg.pkg.tar.gz",
       "size": 13121,
       "csize": 6528,
       "manifest": {
@@ -6112,7 +6112,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd@jarod360-20251127-2-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 324739,
       "csize": 238798,
       "manifest": {
@@ -6165,7 +6165,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd@jarod360-20251127-2-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 337011,
       "csize": 244366,
       "manifest": {
@@ -6218,7 +6218,7 @@
       "license": "GPL-2.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/rtp2httpd@jarod360-20251127-2-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 337011,
       "csize": 244770,
       "manifest": {
@@ -6271,7 +6271,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-1.80.3-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 24348883,
       "csize": 9666320,
       "manifest": {
@@ -6319,7 +6319,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-1.80.3-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 23259771,
       "csize": 8931399,
       "manifest": {
@@ -6367,7 +6367,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-1.80.3-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 23259771,
       "csize": 8931121,
       "manifest": {
@@ -6415,7 +6415,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-1.80.3-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 23259771,
       "csize": 8931036,
       "manifest": {
@@ -6463,7 +6463,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-1.80.3-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 26065043,
       "csize": 8606479,
       "manifest": {
@@ -6511,7 +6511,7 @@
       "license": "BSD-3-Clause",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/tailscale-bin-1.104.2-1-amd64-x86_64-pica.pkg.tar.gz",
       "size": 77823693,
       "csize": 40260286,
       "manifest": {
@@ -6557,7 +6557,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 1944505,
       "manifest": {
@@ -6605,7 +6605,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 1785331,
       "manifest": {
@@ -6653,7 +6653,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 1784940,
       "manifest": {
@@ -6701,7 +6701,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 1806798,
       "manifest": {
@@ -6749,7 +6749,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 3471890,
       "csize": 1487496,
       "manifest": {
@@ -6796,7 +6796,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua-mask-0.4.3-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 3471890,
       "csize": 1487404,
       "manifest": {
@@ -6843,7 +6843,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6781047,
       "manifest": {
@@ -6903,7 +6903,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_cortex-a53-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6094334,
       "manifest": {
@@ -6963,7 +6963,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_cortex-a72-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6094443,
       "manifest": {
@@ -7023,7 +7023,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_generic-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6094059,
       "manifest": {
@@ -7083,7 +7083,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-mipsel-mipsel_24kc-apk.pkg.tar.gz",
       "size": 0,
       "csize": 6077703,
       "manifest": {
@@ -7143,7 +7143,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 16690976,
       "csize": 6471739,
       "manifest": {
@@ -7203,7 +7203,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 16007688,
       "csize": 5911230,
       "manifest": {
@@ -7263,7 +7263,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 16007688,
       "csize": 5911462,
       "manifest": {
@@ -7323,7 +7323,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 16007688,
       "csize": 5911447,
       "manifest": {
@@ -7383,7 +7383,7 @@
       "license": "GPL-3.0-only",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/ua3f-3.7.0-1-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 17788920,
       "csize": 5691756,
       "manifest": {
@@ -7443,7 +7443,7 @@
       "license": "Apache-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/uugamebooster@xiaodoudou-2.0-1-all-apk.pkg.tar.gz",
       "size": 0,
       "csize": 374489,
       "manifest": {
@@ -7501,7 +7501,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/vane-0.9.0-1-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 4692289,
       "csize": 4693820,
       "manifest": {
@@ -7548,7 +7548,7 @@
       "license": "MIT",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/vane-0.9.0-1-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 4172444,
       "csize": 4173547,
       "manifest": {
@@ -7595,7 +7595,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/zerotier-1.14.1-14-amd64-x86_64-opkg.pkg.tar.gz",
       "size": 1312840,
       "csize": 622552,
       "manifest": {
@@ -7658,7 +7658,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/zerotier-1.14.1-14-arm64-aarch64_cortex-a53-opkg.pkg.tar.gz",
       "size": 1267680,
       "csize": 569463,
       "manifest": {
@@ -7721,7 +7721,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/zerotier-1.14.1-14-arm64-aarch64_cortex-a72-opkg.pkg.tar.gz",
       "size": 1267680,
       "csize": 569392,
       "manifest": {
@@ -7784,7 +7784,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/zerotier-1.14.1-14-arm64-aarch64_generic-opkg.pkg.tar.gz",
       "size": 1267680,
       "csize": 569422,
       "manifest": {
@@ -7847,7 +7847,7 @@
       "license": "MPL-2.0",
       "visibility": "open",
       "pica": "0.3.34",
-      "download_url": null,
+      "download_url": "https://github.com/miaoermua/pica-pkg-repo/releases/download/latest/zerotier-1.14.1-14-mipsel-mipsel_24kc-opkg.pkg.tar.gz",
       "size": 1070549,
       "csize": 510859,
       "manifest": {

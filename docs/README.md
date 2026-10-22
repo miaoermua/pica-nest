@@ -18,12 +18,14 @@
 
 ### `ci/`：自动化构建控制区 (面向 DevOps)
 **功能描述：** 存放用于生成发布产物、聚合索引的各类工具脚本。
-- **`scripts/gen_repo_index.py`**：核心聚合脚本。用于每次 CI 完成打包后，提取包清单信息，自动维护与更新全局无历史状态的 `r/repo.json` 索引库。
+- **`.github/scripts/gen_repo_index.py`**：核心聚合脚本。用于每次 CI 完成打包后，提取包清单信息，自动维护与更新全局无历史状态的 `r/repo.json` 索引库。
+- **`.github/scripts/check_no_binaries.py`**：硬性闸门。任何 `.pkg.tar.gz` / `.ipk` / `.apk` / `.adb` 出现在待提交内容或已跟踪文件中，直接使任务失败。
 
 ### `r/`：代理发布点与静态索引库 (最终的发行终点)
-**功能描述：** “Repository”的缩写。这是向外暴露、真正被客户端所请求的源路径起点。
+**功能描述：** “Repository”的缩写。这是向外暴露、真正被客户端所请求的源路径起点。**本目录只保存 JSON 元数据，不保存任何二进制。**
 - **`repo.json`**：极度精简的列表索引。每次有新包入库，旧版本的同名包定义即被彻底抛弃和覆盖，以此保证设备在解析配置时的极低资源占用。
-- 为了应对架构限制，其中的 `filename` 被强制“扁平化”（去掉所有路径分割符），使得一切请求都在 `.../r/<filename>` 这一级直接完成映射。
+- 其中的 `filename` 被强制“扁平化”（去掉所有路径分割符），它只是 Release 资产的**文件名**，不是仓库内的路径。
+- **`download_url` 是下载路径的唯一来源。** 客户端在 `download_url` 为空时会回退到 `<软件源>/packages/<filename>`；一旦索引漏填该字段，为满足这条回退就只能把归档提交进 Git —— 这正是历史上 `r/packages/` 出现、仓库膨胀到 GB 级的原因。CI 现在强制每个条目都带指向 Releases 的 `download_url`，该回退路径在正常分发中不再被触发，`r/packages/` 已废弃。
 
 ---
 
@@ -32,8 +34,9 @@
 软件源的每次更新，都借由 GitHub Actions 做自动化托管，人工零干预：
 1. **触发检测**：任何开发者针对 `src/` 中的内容提交 PR 或 Push 动作，会被 GitHub Actions (基于 `.github/workflows/build-and-release.yml`) 立即监听到。
 2. **矩阵构建**：CI 使用 `pica-pack` 工具，只针对本次增量变更的包执行构建打出 `.pkg.tar.gz` 固件。
-3. **索引热更新**：调用 `ci/scripts/gen_repo_index.py` 将新打出的包清单补全并强行覆写入 `r/repo.json`。
-4. **发行主权**：将这些编译好的离线包全部上架到 GitHub Releases（挂靠在 `latest` 标签下），并将发生了变动的 `repo.json` 反向 Commit 进源码库。
+3. **产物校验**：`.github/scripts/verify_artifacts.py` 比对归档内嵌 `manifest`、SHA256、载荷，并校验 `download_url` 与发布基址一致。
+4. **发行主权**：先把编译好的离线包上架到 GitHub Releases（快照标签 + 累积的 `latest` 标签），再 `HEAD` 探测确认资产可下载；**只有资产确认存在后**，才把带 `download_url` 的 `repo.json` 反向 Commit 进源码库。上传失败则索引保持原样，不会出现指向空地址的 JSON。
+5. **入库闸门**：`.github/scripts/check_no_binaries.py` 在提交前拦截，二进制归档永远不进入版本库。
 
 ---
 
@@ -46,10 +49,11 @@
 - **优势归属**：无需承担高昂的存储费用和原生出口带宽问题。
 
 ### 边缘缓存与加速 (Cloudflare Worker代理)
-Pica 架构中有一份专门编写的 `worker.js`，供部署在 Cloudflare 端。
+实际部署入口是 `worker/index.js`（见 `wrangler.toml` 的 `main`）；`worker/worker.js` 是早期版本，仅作参考，不要部署。
 - 作为国内客户端连接的桥梁（如路由器配置 Pica 软件源指向：`https://<your-worker-domain>/r`）。
-- **索引投递**：拦截对 `/r/repo.json` 的请求，直接去 GitHub Raw 取回数据返回给客户端拉取列表。
-- **流媒体卸载**：如果客户端试图发起文件下载获取 `/r/xxxx.pkg.tar.gz`，Worker 将执行一个漂亮的 `302 Redirect`，或者充当 Proxy Cache 路由到 GitHub 对应的 Release 下载页。
+- **索引投递**：`/repo.json` 与 `/r/repo.json` 均从 GitHub Raw 取回，带 60 秒缓存。
+- **资源分发**：`/latest/<file>` 与 `/releases/<tag>/<file>` 代理到对应 Release 资产，缓存键混入索引中的 `sha256`，因此同一文件名的不同版本不会串缓存；命中索引时按 7 天 `immutable` 缓存，未命中时只缓存 300 秒。
+- **不依赖 Git 中的二进制**：Worker 只从 Releases 取文件，与 `r/` 目录里是否有归档无关。
 
 ### 服务器部署缓存 (可选进阶)
 针对特定环境或国内严重阻断的异常情况，允许补充自建服务器：

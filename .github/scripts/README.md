@@ -65,7 +65,7 @@
 2.  **src/<backend>/<app>/scripts/ [install|update|remove]**: 软件包的生命周期脚本（可选）。
 3.  **src/<backend>/<app>/root/**: 按目标路径镜像安装的载荷（可选）。
 4.  **ci/<backend>/<app>/build.json**: 软件包在 CI 周期中的自动化规则，字段见 `schema/ci-job-v1.schema.json`。
-5.  **r/repo.json**: `pica -S` 拉取的索引（schema 2），产物同时位于 `r/packages/`。
+5.  **r/repo.json**: `pica -S` 拉取的索引（schema 2）。每个条目的 `download_url` 指向 GitHub Releases 资产；仓库内不保存任何 `.pkg.tar.gz`。
 
 ---
 

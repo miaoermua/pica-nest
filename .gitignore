@@ -7,10 +7,20 @@ docs/local_agent_cache/*
 pkgs/
 binary/
 
-# Packages inside src/ are inputs for a local `pica-pack build`; the published
-# copies under r/packages/ are committed on purpose.
+# Built packages are build output. They are published to GitHub Releases and
+# referenced by `download_url` in r/repo.json; the repository tracks metadata
+# only. `check_no_binaries.py` enforces this — the rules below only keep a stray
+# local build out of `git status`.
+#
+# Deliberately not `*.tar.gz`: upstream source archives under src/ are real
+# inputs and must stay trackable.
 *.pkg.tar.gz
-!r/packages/*.pkg.tar.gz
+*.ipk
+*.apk
+*.adb
+r/packages/
+src/*/out/
+dist/
 
 # CI workspace
 build_output/

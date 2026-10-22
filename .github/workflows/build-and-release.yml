@@ -171,24 +171,36 @@ jobs:
           done < "$RUNNER_TEMP/stages.txt"
 
       - name: Generate and verify repository index
+        id: index
         if: steps.detect.outputs.packages != ''
+        env:
+          # The rolling release is the only place artifacts are published to, so
+          # every index entry can carry a stable absolute URL. Same value here and
+          # in the publish job: the merge must be idempotent.
+          DOWNLOAD_BASE: https://github.com/${{ github.repository }}/releases/download/latest
         run: |
           set -euo pipefail
-          mkdir -p r
-          if [ ! -f r/repo.json ]; then
-            printf '{"schema": 2, "packages": []}\n' > r/repo.json
-          fi
           if ! ls build_output/*/repo.json > /dev/null 2>&1; then
             echo "error: no package was built" >&2
             exit 1
           fi
+
+          # The artifact list lives in $RUNNER_TEMP, not under r/: nothing in a
+          # Git-tracked directory may describe build output.
           python3 .github/scripts/gen_repo_index.py build_output/*/repo.json \
-            --release-list r/release-files.txt
+            --download-base "$DOWNLOAD_BASE" \
+            --release-list "$RUNNER_TEMP/release-files.txt"
           python3 .github/scripts/validate_repo.py --quiet
+
+          ARTIFACT_DIRS=()
+          for dir in build_output/*/; do
+            ARTIFACT_DIRS+=(--artifacts-dir "$dir")
+          done
           python3 .github/scripts/verify_artifacts.py \
             --index r/repo.json \
-            --packages-dir r/packages \
-            --require-file r/release-files.txt
+            --download-base "$DOWNLOAD_BASE" \
+            "${ARTIFACT_DIRS[@]}" \
+            --require-file "$RUNNER_TEMP/release-files.txt"
 
       - name: Prepare validated publish artifact
         id: dist
@@ -197,21 +209,25 @@ jobs:
           set -euo pipefail
           mkdir -p dist/packages dist/build_output
           cp r/repo.json dist/repo.json
-          cp r/release-files.txt dist/release-files.txt
+          : > dist/release-files.txt
           while IFS= read -r artifact; do
             [ -n "$artifact" ] || continue
             if [ ! -f "$artifact" ]; then
               echo "error: release artifact is missing: $artifact" >&2
               exit 1
             fi
-            cp "$artifact" dist/packages/
-          done < r/release-files.txt
+            name=$(basename "$artifact")
+            cp "$artifact" "dist/packages/$name"
+            # Upload paths are relative to the publish job's workspace, where
+            # this same directory is restored as dist/.
+            echo "dist/packages/$name" >> dist/release-files.txt
+          done < "$RUNNER_TEMP/release-files.txt"
           for repo in build_output/*/repo.json; do
             backend=$(basename "$(dirname "$repo")")
             mkdir -p "dist/build_output/$backend"
             cp "$repo" "dist/build_output/$backend/repo.json"
           done
-          if [ -s r/release-files.txt ]; then
+          if [ -s dist/release-files.txt ]; then
             echo "has_artifacts=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_artifacts=false" >> "$GITHUB_OUTPUT"
@@ -249,39 +265,32 @@ jobs:
           path: dist
 
       - name: Merge into the current index and verify
+        id: index
+        env:
+          DOWNLOAD_BASE: https://github.com/${{ github.repository }}/releases/download/latest
         run: |
           set -euo pipefail
-          if [ ! -f r/repo.json ]; then
-            printf '{"schema": 2, "packages": []}\n' > r/repo.json
-          fi
-          python3 .github/scripts/gen_repo_index.py --no-copy dist/build_output/*/repo.json
-          mkdir -p r/packages
-          cp -a dist/packages/. r/packages/
+          # No artifacts are copied into a Git-tracked path. The index names the
+          # Release asset; the release is where the bytes live.
+          python3 .github/scripts/gen_repo_index.py dist/build_output/*/repo.json \
+            --download-base "$DOWNLOAD_BASE" \
+            --artifacts-dir dist/packages
           python3 .github/scripts/verify_artifacts.py \
             --index r/repo.json \
-            --packages-dir r/packages \
+            --download-base "$DOWNLOAD_BASE" \
+            --artifacts-dir dist/packages \
             --require-file dist/release-files.txt
 
-      - name: Commit validated artifacts and index
-        id: commit
-        run: |
-          set -euo pipefail
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add r/repo.json
-          git add r/packages
-          if git diff --staged --quiet; then
-            echo "No changes to r/ to commit."
+          if git diff --quiet -- r/repo.json; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Index is unchanged; no release and no commit needed."
             exit 0
           fi
-          git commit -m "chore: auto-update r/repo.json and r/packages [skip ci]"
-          git push origin "HEAD:${{ github.ref_name }}"
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Expose release file list
         id: release_files
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.index.outputs.changed == 'true'
         run: |
           {
             echo 'files<<EOF'
@@ -290,21 +299,58 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Generate Release Tag
-        if: steps.commit.outputs.changed == 'true'
+        if: steps.index.outputs.changed == 'true'
         run: echo "RELEASE_TAG=$(date +'%y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
 
+      # Assets are published before the index that points at them. If either
+      # upload fails the job stops here and r/repo.json keeps its previous
+      # content, so no client is ever handed a URL for a missing file.
       - name: Create Snapshot Release
+        if: steps.index.outputs.changed == 'true'
         uses: softprops/action-gh-release@v3
-        if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: ${{ env.RELEASE_TAG }}
           name: Release ${{ env.RELEASE_TAG }}
           files: ${{ steps.release_files.outputs.files }}
 
+      # The rolling release is what download_url points at, so it has to hold
+      # every version still named by the index — not only this run's files.
+      # Assets from earlier runs are left in place.
       - name: Update Rolling Latest Release
+        if: steps.index.outputs.changed == 'true'
         uses: softprops/action-gh-release@v3
-        if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: latest
           name: Latest Packages
           files: ${{ steps.release_files.outputs.files }}
+
+      - name: Verify published assets are downloadable
+        if: steps.index.outputs.changed == 'true'
+        env:
+          DOWNLOAD_BASE: https://github.com/${{ github.repository }}/releases/download/latest
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/verify_artifacts.py \
+            --index r/repo.json \
+            --download-base "$DOWNLOAD_BASE" \
+            --artifacts-dir dist/packages \
+            --require-file dist/release-files.txt \
+            --probe
+
+      - name: Guard against binaries entering Git
+        if: steps.index.outputs.changed == 'true'
+        run: python3 .github/scripts/check_no_binaries.py
+
+      - name: Commit index only
+        if: steps.index.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add r/repo.json
+          if git diff --staged --quiet; then
+            echo "No index change to commit."
+            exit 0
+          fi
+          git commit -m "chore: update r/repo.json index [skip ci]"
+          git push origin "HEAD:${{ github.ref_name }}"
