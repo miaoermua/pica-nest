@@ -21,6 +21,7 @@
   "$defs": {
     "package": {
       "type": "object",
+      "description": "Optional fields mirror Option<T> in repo.rs. pica-pack serializes an absent option as null, and pica-pkg-core accepts null, so null is valid for every property that is not required.",
       "required": [
         "pkgname",
         "pkgver",
@@ -34,7 +35,7 @@
       "properties": {
         "pkgname": { "type": "string", "minLength": 1 },
         "appname": {
-          "type": "string",
+          "type": ["string", "null"],
           "description": "Selector a user types. Falls back to pkgname when empty."
         },
         "pkgver": { "type": "string", "minLength": 1 },
@@ -43,10 +44,10 @@
           "enum": ["opkg", "apk", "pica"],
           "description": "Which backend owns the files. Part of a package's identity: one application may be published once per backend."
         },
-        "os": { "type": "string" },
+        "os": { "type": ["string", "null"] },
         "platform": { "type": "string", "minLength": 1 },
         "arch": { "type": "string", "minLength": 1 },
-        "uname": { "type": "string" },
+        "uname": { "type": ["string", "null"] },
         "filename": {
           "type": "string",
           "pattern": "\\.pkg\\.tar\\.gz$",
@@ -54,28 +55,28 @@
         },
         "sha256": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
         "size": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 0,
           "description": "Unpacked size of root/ in bytes."
         },
         "csize": {
-          "type": "integer",
+          "type": ["integer", "null"],
           "minimum": 0,
           "description": "Compressed archive size in bytes."
         },
-        "branch": { "type": "string" },
-        "protocol": { "type": "string" },
-        "url": { "type": "string" },
-        "origin": { "type": "string" },
-        "luci_url": { "type": "string" },
-        "luci_desc": { "type": "string" },
-        "pkgdesc": { "type": "string" },
-        "license": { "type": "string" },
-        "visibility": { "enum": ["open", "mix", "closed"] },
-        "pica": { "type": "string" },
-        "download_url": { "type": "string" },
+        "branch": { "type": ["string", "null"] },
+        "protocol": { "type": ["string", "null"] },
+        "url": { "type": ["string", "null"] },
+        "origin": { "type": ["string", "null"] },
+        "luci_url": { "type": ["string", "null"] },
+        "luci_desc": { "type": ["string", "null"] },
+        "pkgdesc": { "type": ["string", "null"] },
+        "license": { "type": ["string", "null"] },
+        "visibility": { "enum": ["open", "mix", "closed", null] },
+        "pica": { "type": ["string", "null"] },
+        "download_url": { "type": ["string", "null"] },
         "manifest": {
-          "type": "object",
+          "type": ["object", "null"],
           "description": "The package's own manifest, verbatim. Repeated fields such as app/base/kmod appear as arrays of strings.",
           "additionalProperties": true
         }
