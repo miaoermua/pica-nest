@@ -43,13 +43,17 @@ jobs:
 
   build:
     needs: validate
-    runs-on: ubuntu-latest
+    # Pinned rather than `ubuntu-latest`: that label starts migrating to Ubuntu
+    # 26 on 2026-10-19, and a package source should not have its build image
+    # change underneath it mid-release. Move this once 26 has been exercised on
+    # a branch and the artifacts compare equal.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     outputs:
       has_artifacts: ${{ steps.dist.outputs.has_artifacts }}
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -81,7 +85,7 @@ jobs:
 
       - name: Checkout pica source
         id: pica
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: miaoermua/pica
           # TEMPORARY: 0.3.33 is on the `apk` branch; main is still 0.3.0.
@@ -94,7 +98,7 @@ jobs:
 
       - name: Cache pica-pack for this pica commit
         id: pica_cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: pica-source/target/release/pica-pack
           key: pica-pack-${{ runner.os }}-${{ steps.pica_sha.outputs.sha }}
@@ -136,7 +140,7 @@ jobs:
 
       - name: Restore asset cache
         if: steps.detect.outputs.packages != ''
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/pica-assets
           key: pica-assets-${{ runner.os }}-${{ hashFiles('ci/**/build.json', 'src/**/manifest') }}
@@ -215,7 +219,7 @@ jobs:
 
       - name: Upload validated publish artifact
         if: steps.dist.outputs.has_artifacts == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: pica-dist
           path: dist
@@ -228,18 +232,18 @@ jobs:
       needs.build.outputs.has_artifacts == 'true' &&
       (github.event_name == 'push' ||
        (github.event.inputs.publish == 'true' && github.ref == 'refs/heads/main'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
 
       - name: Download validated artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v6
         with:
           name: pica-dist
           path: dist
@@ -290,7 +294,7 @@ jobs:
         run: echo "RELEASE_TAG=$(date +'%y-%m-%d-%H-%M-%S')" >> $GITHUB_ENV
 
       - name: Create Snapshot Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: ${{ env.RELEASE_TAG }}
@@ -298,7 +302,7 @@ jobs:
           files: ${{ steps.release_files.outputs.files }}
 
       - name: Update Rolling Latest Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: steps.commit.outputs.changed == 'true'
         with:
           tag_name: latest
