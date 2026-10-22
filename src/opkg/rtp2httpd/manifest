@@ -1,6 +1,6 @@
 pkgname = rtp2httpd
 appname = rtp2httpd
-pkgver = 3.9.1
+pkgver = 3.17.2
 pkgrel = 1
 os = openwrt
 platform = all
@@ -18,5 +18,4 @@ packager = pica-pack
 type = luci
 luci = js2
 targets = opkg
-app = luci-app-rtp2httpd
-app_i18n = luci-i18n-rtp2httpd-{lang}
+app = rtp2httpd

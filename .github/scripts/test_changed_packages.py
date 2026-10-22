@@ -18,6 +18,7 @@ from changed_packages import (  # noqa: E402
     is_zero_sha,
     parse_name_status,
     plan,
+    select_packages,
 )
 
 
@@ -183,6 +184,24 @@ class FullPlanTest(unittest.TestCase):
             self.assertTrue(result.full_rebuild)
             self.assertEqual(len(result.errors), 1)
             self.assertIn("ci/apk/demo/build.json is missing", result.errors[0])
+
+
+class SelectPackagesTest(unittest.TestCase):
+    def test_explicit_packages_are_validated(self):
+        existing = pair("opkg", "hello") | pair("pica", "demo")
+        result = select_packages("src/opkg/hello, src/pica/demo", lambda path: path in existing)
+        self.assertEqual(result.packages, ["src/opkg/hello", "src/pica/demo"])
+        self.assertEqual(result.errors, [])
+
+    def test_bad_or_incomplete_paths_are_errors(self):
+        result = select_packages("src/opkg/missing ops/opkg/hello", lambda _path: False)
+        self.assertEqual(result.packages, [])
+        self.assertEqual(len(result.errors), 2)
+
+    def test_empty_selection_is_an_error(self):
+        result = select_packages("", lambda _path: True)
+        self.assertEqual(result.packages, [])
+        self.assertEqual(len(result.errors), 1)
 
 
 class RangeTest(unittest.TestCase):

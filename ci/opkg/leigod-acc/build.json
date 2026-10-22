@@ -32,6 +32,16 @@
             "platform": "all",
             "arch": "all"
           }
+        },
+        {
+          "name": "luci-i18n",
+          "role": "i18n",
+          "regex": "^luci-i18n-leigod-acc-zh-cn_.*_all\\.ipk$",
+          "required": true,
+          "target": {
+            "platform": "all",
+            "arch": "all"
+          }
         }
       ]
     }

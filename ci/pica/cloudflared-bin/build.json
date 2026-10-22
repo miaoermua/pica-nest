@@ -6,7 +6,7 @@
   "manifest": "src/pica/cloudflared-bin/manifest",
   "source": {
     "provider": "tarball",
-    "url_template": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.1/cloudflared-linux-{arch}",
+    "url_template": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.3/cloudflared-linux-{arch}",
     "rename": "cloudflared",
     "dest_subdir": "usr/sbin",
     "arch_map": {
@@ -19,7 +19,7 @@
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "2026.10.1"
+      "fallback": "2026.10.3"
     },
     "pkgrel": {
       "from": "manifest",

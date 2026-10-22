@@ -75,6 +75,10 @@ def main():
     parser.add_argument("inputs", nargs="+", help="repo.json files written by pica-pack")
     parser.add_argument("--repo", default=DEFAULT_REPO_JSON, help="merged index to write")
     parser.add_argument("--no-copy", action="store_true", help="skip copying artifacts next to the index")
+    parser.add_argument(
+        "--release-list",
+        help="write the repo-relative artifacts produced by this run, one per line",
+    )
     args = parser.parse_args()
 
     if not os.path.isfile(args.repo):
@@ -98,6 +102,7 @@ def main():
         return 1
 
     merged = {(pkg["pkgmgr"], pkg["pkgname"]): pkg for pkg in existing.get("packages", [])}
+    released = set()
 
     for path in args.inputs:
         try:
@@ -110,6 +115,11 @@ def main():
             copy_artifacts(index, os.path.dirname(os.path.abspath(path)), repo_dir)
 
         for pkg in index["packages"]:
+            if not args.no_copy:
+                # The workflow consumes these paths from the repository root.
+                # Basename keeps `r/packages/...` portable across the macOS
+                # `/var` -> `/private/var` symlink and the Linux runner.
+                released.add(os.path.join(os.path.basename(repo_dir), "packages", pkg["filename"]))
             key = (pkg["pkgmgr"], pkg["pkgname"])
             previous = merged.get(key)
             if previous and previous.get("pkgver") != pkg["pkgver"]:
@@ -128,6 +138,12 @@ def main():
     with open(args.repo, "w", encoding="utf-8") as handle:
         json.dump(existing, handle, indent=2, ensure_ascii=False)
         handle.write("\n")
+
+    if args.release_list:
+        os.makedirs(os.path.dirname(os.path.abspath(args.release_list)) or ".", exist_ok=True)
+        with open(args.release_list, "w", encoding="utf-8") as handle:
+            for artifact in sorted(released):
+                handle.write(artifact + "\n")
 
     print(f"updated {args.repo} with {len(packages)} package(s)")
     return 0

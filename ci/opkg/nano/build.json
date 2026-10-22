@@ -19,7 +19,10 @@
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "8.7.1"
+      "fallback": "9.1"
+    },
+    "arch_versions": {
+      "aarch64_cortex-a53": "9.2"
     }
   },
   "build": {

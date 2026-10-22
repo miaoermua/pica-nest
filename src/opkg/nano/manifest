@@ -1,6 +1,6 @@
 pkgname = nano
 appname = nano
-pkgver = 8.7.1
+pkgver = 9.1
 pkgrel = 1
 os = openwrt
 platform = all

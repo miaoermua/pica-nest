@@ -127,7 +127,7 @@ def container_pkgname(path):
 
 
 def container_metadata(path):
-    """Return the `Package:` and `Architecture:` of a container, or None.
+    """Return `Package:`, `Version:` and `Architecture:` of a container, or None.
 
     `None` means the container could not be read: an ADB-format apk (apk-tools
     3.x), a corrupt archive, or a missing `tar`. That is a distinct outcome
@@ -143,13 +143,55 @@ def container_metadata(path):
         if not text:
             return None
         package = re.search(r"^Package:\s*(\S+)\s*$", text, re.MULTILINE)
+        version = re.search(r"^Version:\s*(\S+)\s*$", text, re.MULTILINE)
         architecture = re.search(r"^Architecture:\s*(\S+)\s*$", text, re.MULTILINE)
         if package is None and architecture is None:
             return None
         return {
             "package": package.group(1) if package else None,
+            "version": version.group(1) if version else None,
             "architecture": architecture.group(1) if architecture else None,
         }
+
+
+def manifest_pkgver(manifest_path):
+    """Return the manifest's `pkgver`, or None when it cannot be read."""
+    if not os.path.isfile(manifest_path):
+        return None
+    with open(manifest_path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if line.startswith("pkgver"):
+                _, _, value = line.partition("=")
+                return value.strip() or None
+    return None
+
+
+def version_matches(expected, actual):
+    """Whether `actual` names the same upstream version as `expected`.
+
+    Upstream spells separators differently across containers and filenames
+    (`1.8-9`/`1.8.9`, `26.156.15499~hash`/`26.156.15499.hash`), and a container
+    may append its package revision (`-r1`). Those are one version. A different
+    base version is not.
+    """
+    def normalize(value):
+        return re.sub(r"[._~-]+", ".", value.strip().lower().lstrip("v"))
+
+    needle = normalize(expected)
+    haystack = normalize(actual)
+    if not needle:
+        return False
+    start = 0
+    while True:
+        index = haystack.find(needle, start)
+        if index < 0:
+            return False
+        before = haystack[index - 1] if index else ""
+        after = haystack[index + len(needle)] if index + len(needle) < len(haystack) else ""
+        if not before.isdigit() and not after.isdigit():
+            return True
+        start = index + 1
 
 
 def manifest_dependencies(manifest_path):

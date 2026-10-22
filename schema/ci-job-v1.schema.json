@@ -120,6 +120,11 @@
             "fallback": {}
           },
           "additionalProperties": true
+        },
+        "arch_versions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Per-architecture upstream versions when the feed genuinely ships different versions. The manifest pkgver is used for architectures not listed here; the version audit accepts a listed architecture only when its URL carries the listed version."
         }
       },
       "additionalProperties": true

@@ -6,7 +6,7 @@
   "manifest": "src/pica/tailscale-bin/manifest",
   "source": {
     "provider": "tarball",
-    "url_template": "https://pkgs.tailscale.com/stable/tailscale_1.104.1_{arch}.tgz",
+    "url_template": "https://pkgs.tailscale.com/stable/tailscale_1.104.2_{arch}.tgz",
     "strip_components": 1,
     "dest_subdir": "usr/sbin",
     "include": [
@@ -24,7 +24,7 @@
   "versioning": {
     "pkgver": {
       "from": "manifest",
-      "fallback": "1.104.1"
+      "fallback": "1.104.2"
     },
     "pkgrel": {
       "from": "manifest",

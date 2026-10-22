@@ -1,6 +1,6 @@
 pkgname = cloudflared-bin
 appname = cloudflared
-pkgver = 2026.10.1
+pkgver = 2026.10.3
 pkgrel = 1
 os = openwrt
 platform = amd64
