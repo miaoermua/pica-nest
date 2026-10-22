@@ -76,7 +76,7 @@
         "arch_map": {
           "type": "object",
           "additionalProperties": { "type": "string" },
-          "description": "Renames each matrix architecture for the URL, for a source that names them its own way — a Go project calls x86_64 `amd64` and aarch64 `arm64`. An architecture not listed here is substituted as it stands. Read only by the tarball provider."
+          "description": "For the tarball provider, renames each matrix architecture for the URL, for a source that names them its own way — a Go project calls x86_64 `amd64` and aarch64 `arm64`; an architecture not listed here is substituted as it stands. For the github provider, maps a captured asset architecture (e.g. `aarch64`) to a matrix architecture (e.g. `aarch64_generic`)."
         },
         "release": {
           "type": "object",

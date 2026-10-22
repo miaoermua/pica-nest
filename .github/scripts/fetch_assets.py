@@ -9,7 +9,12 @@ import tempfile
 import shutil
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from container_metadata import check_downloaded, container_metadata, manifest_dependencies
+from container_metadata import (
+    check_downloaded,
+    container_metadata,
+    declares_package,
+    manifest_dependencies,
+)
 from validate_repo import check_job_fallback, job_layout_errors, try_jsonschema
 
 def fetch_json(url):
@@ -151,7 +156,8 @@ def fetch_github_assets(pkg_dir, build_config):
                 if capture_to:
                     for key, group_idx in capture_to.items():
                         val = match.group(int(group_idx))
-                        if key == "arch": target_arch = val
+                        if key == "arch":
+                            target_arch = (source.get("arch_map") or {}).get(val, val)
                         elif key == "platform": target_platform = val
 
                 # If we have an arch but no platform, look it up in the matrix
@@ -605,6 +611,11 @@ def static_errors(pkg, mgr, build_json_path, build_config):
                     "use capture_to",
                     asset=name,
                 )
+        for upstream, mapped in (source.get("arch_map") or {}).items():
+            if mapped not in matrix_arches:
+                add(
+                    f"github arch_map maps {upstream!r} to {mapped!r}, which is not in build.matrix"
+                )
     elif provider == "http_template":
         arch_templates = source.get("arch_url_templates") or {}
         for arch in arch_templates:
@@ -678,6 +689,7 @@ def plan_github_assets(release, build_config, stage, pkg):
             arch = target.get("arch")
             if "arch" in capture:
                 arch = match.group(int(capture["arch"]))
+                arch = (source.get("arch_map") or {}).get(arch, arch)
             if "platform" in capture:
                 platform = match.group(int(capture["platform"]))
 
@@ -1104,7 +1116,7 @@ def verify_plan(plan):
     stage = plan["stage"]
     manifest = os.path.join(stage, "manifest")
     declared = manifest_dependencies(manifest)
-    known = declared["app"] | declared["base"] | declared["kmod"]
+    has_declarations = any(declared.values())
 
     for request in plan["requests"]:
         if not request.get("ok"):
@@ -1136,7 +1148,7 @@ def verify_plan(plan):
             continue
         package = metadata.get("package")
         architecture = metadata.get("architecture")
-        if package and known and package not in known:
+        if package and has_declarations and not declares_package(declared, package):
             errors.append(
                 preflight_error(
                     request["pkg"], request["mgr"], "verify",
