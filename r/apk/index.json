@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "mgr": "apk",
-  "generated_at": "2026-10-31T12:12:07Z",
+  "generated_at": "2026-10-31T12:25:09Z",
   "packages": [
     {
       "pkgname": "adguardhome",
@@ -3578,6 +3578,59 @@
         "source_availability": "open",
         "type": "luci",
         "url": "https://github.com/derisamedia/luci-theme-alpha"
+      }
+    },
+    {
+      "pkgname": "luci-theme-argon",
+      "pkgver": "3.1.1",
+      "pkgrel": "1",
+      "pkgmgr": "apk",
+      "platform": "all",
+      "arch": "all",
+      "filename": "luci-theme-argon-3.1.1-1-all-apk.pkg.tar.gz",
+      "sha256": "3d78d172dec0d0f50c01c9e233b50f5cef7ebad3da2c37b5c7d07cce3cec437b",
+      "appname": "luci-theme-argon",
+      "os": "openwrt",
+      "branch": "master",
+      "protocol": "luci",
+      "url": "https://github.com/jerrykuku/luci-theme-argon",
+      "origin": null,
+      "luci_url": "https://github.com/jerrykuku/luci-theme-argon",
+      "luci_desc": "Argon theme for the LuCI web interface",
+      "pkgdesc": "A clean and elegant OpenWrt LuCI theme with light/dark modes and a customizable login page",
+      "license": "Apache-2.0",
+      "source_availability": "open",
+      "pica": "0.4.4",
+      "download_url": "https://github.com/miaoermua/pica-nest/releases/download/latest/luci-theme-argon-3.1.1-1-all-apk.pkg.tar.gz",
+      "size": 0,
+      "csize": 300059,
+      "manifest": {
+        "app": [
+          "luci-theme-argon",
+          "luci-app-argon-config?"
+        ],
+        "appname": "luci-theme-argon",
+        "arch": "all",
+        "branch": "master",
+        "builddate": "1793449494",
+        "license": "Apache-2.0",
+        "luci": "lua1",
+        "luci_desc": "Argon theme for the LuCI web interface",
+        "luci_url": "https://github.com/jerrykuku/luci-theme-argon",
+        "os": "openwrt",
+        "packager": "pica-pack",
+        "pica": "0.4.4",
+        "pkgdesc": "A clean and elegant OpenWrt LuCI theme with light/dark modes and a customizable login page",
+        "pkgmgr": "apk",
+        "pkgname": "luci-theme-argon",
+        "pkgrel": "1",
+        "pkgver": "3.1.1",
+        "platform": "all",
+        "protocol": "luci",
+        "size": "0",
+        "source_availability": "open",
+        "type": "theme",
+        "url": "https://github.com/jerrykuku/luci-theme-argon"
       }
     },
     {

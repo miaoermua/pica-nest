@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "mgr": "pica",
-  "generated_at": "2026-10-31T12:12:07Z",
+  "generated_at": "2026-10-31T12:25:09Z",
   "packages": [
     {
       "pkgname": "cattools",
@@ -240,6 +240,52 @@
         "source_availability": "open",
         "type": "cli",
         "url": "https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/"
+      }
+    },
+    {
+      "pkgname": "fastfetch",
+      "pkgver": "2.70.0",
+      "pkgrel": "1",
+      "pkgmgr": "pica",
+      "platform": "amd64",
+      "arch": "x86_64",
+      "filename": "fastfetch-2.70.0-1-amd64-x86_64-pica.pkg.tar.gz",
+      "sha256": "8a7c3e45be1c970fe0af923a5ac426f5a6d913942a4949abeac1812faf4cdcb6",
+      "appname": "fastfetch",
+      "os": "openwrt",
+      "branch": "dev",
+      "protocol": "cli",
+      "url": "https://github.com/fastfetch-cli/fastfetch",
+      "origin": null,
+      "luci_url": null,
+      "luci_desc": null,
+      "pkgdesc": "A fast hardware information tool written in C, an alternative to neofetch",
+      "license": "MIT",
+      "source_availability": "open",
+      "pica": "0.4.4",
+      "download_url": "https://github.com/miaoermua/pica-nest/releases/download/latest/fastfetch-2.70.0-1-amd64-x86_64-pica.pkg.tar.gz",
+      "size": 4499840,
+      "csize": 1525650,
+      "manifest": {
+        "appname": "fastfetch",
+        "arch": "x86_64",
+        "branch": "dev",
+        "builddate": "1793449495",
+        "license": "MIT",
+        "os": "openwrt",
+        "packager": "pica-pack",
+        "pica": "0.4.4",
+        "pkgdesc": "A fast hardware information tool written in C, an alternative to neofetch",
+        "pkgmgr": "pica",
+        "pkgname": "fastfetch",
+        "pkgrel": "1",
+        "pkgver": "2.70.0",
+        "platform": "amd64",
+        "protocol": "cli",
+        "size": "4499840",
+        "source_availability": "open",
+        "type": "cli",
+        "url": "https://github.com/fastfetch-cli/fastfetch"
       }
     },
     {
