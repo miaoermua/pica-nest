@@ -1,0 +1,29 @@
+# packages/@MGR@/@ID@/manifest — see docs/packaging.md
+#
+# No pkgver: the version follows the source (feed / github). Pin one only when
+# the source cannot supply it (url / archive), and keep `~` out of it.
+pkgname = @ID@
+appname = @ID@
+os = openwrt
+pica = 0.4.4
+targets = @MGR@
+
+pkgdesc = One line saying what the program does.
+url = https://github.com/OWNER/REPO
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-@ID@
+luci_desc = LuCI support for @ID@
+branch = master
+protocol = luci
+license = GPL-2.0-only
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+
+# Every container the job downloads must be named here (app/base/kmod),
+# or the build stops: a container nobody names cannot be uninstalled.
+app = @ID@
+app = luci-app-@ID@
+app_i18n = luci-i18n-@ID@-{lang}
+# A trailing ? keeps a name the feeds carry from moving the install to the feeds.
+base = luci-base?

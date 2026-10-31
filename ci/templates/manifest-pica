@@ -1,0 +1,19 @@
+# packages/pica/@ID@/manifest — a bare binary deployed through root/.
+#
+# The pica backend installs no dependencies: no app/base/kmod here.
+pkgname = @ID@-bin
+appname = @ID@
+pkgver = 1.0.0
+pkgrel = 1
+os = openwrt
+pica = 0.4.4
+targets = pica
+
+pkgdesc = One line saying what the program does.
+url = https://github.com/OWNER/REPO
+branch = main
+protocol = cli
+license = MIT
+source_availability = open
+packager = pica-pack
+type = cli

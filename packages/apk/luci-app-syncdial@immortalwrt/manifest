@@ -1,0 +1,33 @@
+pkgname = luci-app-syncdial@immortalwrt
+appname = luci-app-syncdial
+os = openwrt
+pica = 0.4.4
+pkgdesc = Virtual WAN config generator
+url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-syncdial
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-syncdial
+branch = master
+protocol = luci
+luci_desc = Virtual WAN config generator
+license = Apache-2.0
+source_availability = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+
+# The upstream name is what gets installed; this source's own name carries the
+# feed it came from, so the package and the one the device's own source
+# publishes do not collide in one index.
+app = luci-app-syncdial
+
+# The recipe asks for `+luci-compat +kmod-macvlan +luci-app-mwan3`, and the
+# container's own metadata carries them: the ipk depends on luci-lua-runtime,
+# kmod-macvlan and luci-app-mwan3, and the apk adds luci-compat. They are
+# left to the backend to resolve rather than repeated here, because a name
+# this release spells differently would fail the precheck before opkg ever
+# saw the container — luci-compat is already one such name, renamed to
+# luci-lua-runtime on one side and kept on the other.
+#
+# luci-base is the web framework the interface is served by. The container
+# does not list it, and it is what every LuCI package here declares.
+base = luci-base

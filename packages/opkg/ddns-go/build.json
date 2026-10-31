@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "sirpdboy/luci-app-ddns-go",
+    "tag": "v{version}",
+    "assets": [
+      {
+        "match": "^ddns-go_{version}-r1_(.*)\\.ipk$"
+      },
+      {
+        "match": "^luci-app-ddns-go_.*_all\\.ipk$"
+      },
+      {
+        "match": "^luci-i18n-ddns-go-zh-cn_.*_all\\.ipk$"
+      }
+    ]
+  }
+}

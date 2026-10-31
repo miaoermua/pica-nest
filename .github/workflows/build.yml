@@ -1,0 +1,259 @@
+name: build
+
+# Push to main: rebuild the packages the push changed (a package directory, or
+# a feed URL in ci/config.json), publish them to the release named in
+# ci/config.json, then commit r/. Packages build independently: one upstream
+# that moved fails its own package and the report, not the whole release.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "ci/**"
+      - "r/index.json"
+      - ".github/workflows/build.yml"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Packages to build, space-separated <mgr>/<id> (empty: use 'all')"
+        type: string
+        required: false
+      all:
+        description: "Rebuild every package"
+        type: boolean
+        default: false
+      publish:
+        description: "Publish the result (main only)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One build at a time: each publish merges into the r/ the previous one wrote.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    uses: ./.github/workflows/check.yml
+
+  build:
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      packages: ${{ steps.select.outputs.packages }}
+      removed: ${{ steps.select.outputs.removed }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Select packages
+        id: select
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          INPUT_PACKAGES: ${{ inputs.packages }}
+          INPUT_ALL: ${{ inputs.all }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            if [ "$INPUT_ALL" = "true" ]; then
+              python3 -m ci.nest changed --all
+            elif [ -n "$INPUT_PACKAGES" ]; then
+              echo "packages=$INPUT_PACKAGES" >> "$GITHUB_OUTPUT"
+              echo "removed=" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::name packages or tick 'all'"
+              exit 1
+            fi
+          elif git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+            python3 -m ci.nest changed --base "$BEFORE" --head "$GITHUB_SHA"
+          else
+            echo "No usable base commit (first push or force push): rebuilding everything."
+            python3 -m ci.nest changed --all
+          fi
+
+      - name: Read the pica revision from ci/config.json
+        id: pica
+        if: steps.select.outputs.packages != ''
+        run: |
+          echo "repo=$(python3 -m ci.nest config pica.repo)" >> "$GITHUB_OUTPUT"
+          echo "ref=$(python3 -m ci.nest config pica.ref)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v5
+        if: steps.select.outputs.packages != ''
+        with:
+          repository: ${{ steps.pica.outputs.repo }}
+          ref: ${{ steps.pica.outputs.ref }}
+          path: .pica
+
+      - name: Resolve the pica commit
+        id: pica_sha
+        if: steps.select.outputs.packages != ''
+        run: echo "sha=$(git -C .pica rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pica-pack
+        id: pica_cache
+        if: steps.select.outputs.packages != ''
+        uses: actions/cache@v5
+        with:
+          path: .pica/target/release/pica-pack
+          key: pica-pack-${{ runner.os }}-${{ steps.pica_sha.outputs.sha }}
+
+      - name: Build pica-pack
+        if: steps.select.outputs.packages != '' && steps.pica_cache.outputs.cache-hit != 'true'
+        run: |
+          rustup toolchain install stable --profile minimal
+          cargo build --release --locked --bin pica-pack --manifest-path .pica/Cargo.toml
+
+      - name: Restore the download cache
+        if: steps.select.outputs.packages != ''
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pica-nest
+          key: downloads-${{ hashFiles('ci/config.json', 'packages/**/build.json', 'packages/**/manifest') }}
+          restore-keys: downloads-
+
+      - name: Build
+        if: steps.select.outputs.packages != ''
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PACKAGES: ${{ steps.select.outputs.packages }}
+        run: |
+          python3 -m ci.nest build $PACKAGES --out dist \
+            --cache ~/.cache/pica-nest \
+            --pica-pack .pica/target/release/pica-pack \
+            --allow-partial
+
+      - uses: actions/upload-artifact@v6
+        if: always() && steps.select.outputs.packages != ''
+        with:
+          name: dist
+          path: dist
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: build
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.publish) &&
+      (needs.build.outputs.packages != '' || needs.build.outputs.removed != '')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # The tip of main, not the commit that triggered the run: r/ has to be
+      # merged into whatever the previous publish committed.
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/download-artifact@v6
+        if: needs.build.outputs.packages != ''
+        with:
+          name: dist
+          path: dist
+
+      - name: Read the release from ci/config.json
+        id: release
+        run: |
+          set -euo pipefail
+          REPO=$(python3 -m ci.nest config release.repo)
+          if [ "$REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::ci/config.json release.repo is $REPO, this repository is $GITHUB_REPOSITORY"
+            exit 1
+          fi
+          echo "tag=$(python3 -m ci.nest config release.tag)" >> "$GITHUB_OUTPUT"
+
+      - name: Merge the build into r/
+        id: index
+        run: |
+          set -euo pipefail
+          cp -r r "$RUNNER_TEMP/r-previous"
+          ARGS=()
+          if [ -d dist ]; then ARGS+=(--build dist); fi
+          python3 -m ci.nest index "${ARGS[@]}" --release-list "$RUNNER_TEMP/release.txt"
+          git add -A r
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "r/ is unchanged."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Assets first, index second: a client can never be handed an entry whose
+      # file is not there yet. A failure below leaves r/ as it was; rerun.
+      - name: Upload artifacts to the release
+        if: steps.index.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "$TAG" > /dev/null 2>&1; then
+            gh release create "$TAG" --title "Packages" \
+              --notes "Built by the build workflow. The index is r/ on the main branch."
+          fi
+          if [ -s "$RUNNER_TEMP/release.txt" ]; then
+            xargs -a "$RUNNER_TEMP/release.txt" -d '\n' gh release upload "$TAG" --clobber
+          fi
+
+      - name: Verify the uploaded bytes against r/
+        if: steps.index.outputs.changed == 'true'
+        run: python3 -m ci.nest verify-published --list "$RUNNER_TEMP/release.txt"
+
+      - name: Commit r/
+        if: steps.index.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 -m ci.nest validate
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "r: update index [skip ci]"
+          git push origin HEAD:main
+
+      # One generation of superseded assets is kept, so a device that synced
+      # just before this run can still download what its index promised.
+      - name: Remove release assets no index references
+        if: steps.index.outputs.changed == 'true'
+        env:
+          TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release view "$TAG" --json assets --jq '.assets[].name' > "$RUNNER_TEMP/assets.txt"
+          python3 -m ci.nest stale --assets "$RUNNER_TEMP/assets.txt" --previous "$RUNNER_TEMP/r-previous" \
+            | while read -r name; do
+                echo "delete $name"
+                gh release delete-asset "$TAG" "$name" --yes
+              done
+
+  report:
+    needs: [build, publish]
+    if: always() && needs.build.outputs.packages != ''
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v6
+        with:
+          name: dist
+          path: dist
+      - name: Fail on any package that did not build
+        run: python3 -m ci.nest report dist/report.json

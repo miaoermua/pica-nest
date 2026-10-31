@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "aarch64_generic",
+    "aarch64_cortex-a53"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "Zesuy/UA-Mask",
+    "tag": "v{version}",
+    "assets": [
+      {
+        "match": "^UAmask_[0-9].*-r?[0-9]+[_-]([A-Za-z0-9_+.-]+)\\.ipk$"
+      }
+    ]
+  }
+}

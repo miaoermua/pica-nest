@@ -1,0 +1,15 @@
+pkgname = tailscale-bin
+appname = tailscale
+pkgver = 1.104.2
+pkgrel = 1
+os = openwrt
+pica = 0.4.4
+pkgdesc = Tailscale is a zero config mesh VPN that creates a secure network between your devices.
+url = https://tailscale.com
+branch = master
+protocol = cli
+license = BSD-3-Clause
+source_availability = open
+packager = pica-pack
+type = cli
+targets = pica

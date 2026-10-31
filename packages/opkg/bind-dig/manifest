@@ -1,0 +1,14 @@
+pkgname = bind-dig
+appname = bind-dig
+os = openwrt
+pica = 0.4.4
+pkgdesc = Dig (domain information groper) is a flexible tool for interrogating DNS name servers.
+url = https://www.isc.org/bind/
+branch = master
+protocol = cli
+license = MPL-2.0
+source_availability = open
+packager = pica-pack
+type = cli
+targets = opkg
+app = bind-dig

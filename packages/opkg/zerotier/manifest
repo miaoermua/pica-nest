@@ -1,0 +1,28 @@
+pkgname = zerotier
+appname = zerotier
+url = https://www.zerotier.com
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-zerotier
+branch = immortalwrt
+protocol = luci
+os = openwrt
+pica = 0.4.4
+
+pkgdesc = ZeroTier VPN Plugin (ImmortalWrt LuCI2 version)
+packager = pica-pack
+license = MPL-2.0
+source_availability = open
+type = luci
+luci = js2
+targets = opkg
+
+# Install plan
+app = zerotier
+app = luci-app-zerotier
+app_i18n = luci-i18n-zerotier-{lang}
+base = libpthread
+base = libstdcpp
+kmod = kmod-tun
+base = ip
+base = libminiupnpc
+base = libnatpmp
+base = libatomic

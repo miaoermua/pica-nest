@@ -1,0 +1,23 @@
+pkgname = luci-app-frps
+appname = frps
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for the frp server, for receiving the connections the frp client opens and forwarding them.
+url = https://github.com/fatedier/frp
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-frps
+branch = master
+protocol = luci
+luci_desc = LuCI Support for frp server
+license = Apache-2.0
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# The interface's control declares +frps, so the server rides along. It is a
+# separate container rather than a merged tree, so apk still records what it
+# installed and either can be updated on its own.
+app = luci-app-frps
+app = frps
+base = luci-base

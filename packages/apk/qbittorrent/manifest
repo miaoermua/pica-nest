@@ -1,0 +1,33 @@
+pkgname = qbittorrent
+appname = qbittorrent
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for qBittorrent, for managing the BitTorrent daemon: torrents, categories and transfer settings.
+url = https://github.com/qbittorrent/qBittorrent
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-qbittorrent
+branch = master
+protocol = luci
+luci_desc = LuCI app for qBittorrent
+license = Apache-2.0
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# The interface's control declares +qbittorrent, so the daemon rides along as a
+# separate container — an interface with no daemon behind it opens onto an empty
+# page. luci-base is the base install and is declared rather than carried.
+#
+# This pairs the plain upstream qbittorrent rather than
+# qbittorrent-enhanced-edition, because that is the name the recipe declares:
+# the two install to the same paths, so shipping both would put a second daemon
+# in the image.
+app = luci-app-qbittorrent
+app = qbittorrent
+base = luci-base
+
+# Simplified Chinese, named with -{lang} the way the other translated packages
+# here do. The feed resolves it per architecture, so each artifact carries the
+# translation built alongside its own interface.
+app_i18n = luci-i18n-qbittorrent-{lang}

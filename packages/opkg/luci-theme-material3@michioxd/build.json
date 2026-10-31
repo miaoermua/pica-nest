@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "michioxd/luci-theme-material3",
+    "tag_regex": "^v?[0-9]+(?:\\.[0-9]+)*$",
+    "assets": [
+      {
+        "match": "^luci-theme-material3_[0-9].*_all\\.ipk$"
+      }
+    ]
+  }
+}

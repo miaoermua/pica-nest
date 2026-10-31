@@ -1,0 +1,21 @@
+pkgname = openlist
+appname = openlist
+url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-openlist
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-openlist
+branch = immortalwrt
+protocol = luci
+os = openwrt
+pica = 0.4.4
+
+pkgdesc = Openlist LuCI2 Plugin (ImmortalWrt)
+packager = pica-pack
+license = Apache-2.0
+source_availability = open
+type = luci
+luci = js2
+targets = opkg
+
+# Install plan
+app = openlist
+app = luci-app-openlist
+app_i18n = luci-i18n-openlist-{lang}

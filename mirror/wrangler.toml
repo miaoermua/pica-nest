@@ -1,0 +1,11 @@
+name = "pica-nest"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Deploy: npx wrangler deploy --config mirror/wrangler.toml
+[vars]
+GITHUB_REPO = "miaoermua/pica-nest"
+BRANCH = "main"
+
+[observability]
+enabled = true

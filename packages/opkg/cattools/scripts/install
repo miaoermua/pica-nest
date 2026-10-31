@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+TARGET="/usr/bin/cattools"
+SRC="/usr/lib/pica/src/cattools/cattools.sh"
+
+if [ ! -s "$SRC" ]; then
+  echo "cattools install: source script not found: $SRC" >&2
+  exit 1
+fi
+
+install -m 0755 "$SRC" "$TARGET"

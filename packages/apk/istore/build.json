@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "url",
+    "urls": [
+      "https://istore.istoreos.com/repo-apk/all/store/luci-app-store-0.2.1-r1.apk",
+      "https://istore.istoreos.com/repo-apk/all/store/luci-lib-taskd-1.0.26.apk",
+      "https://istore.istoreos.com/repo-apk/all/store/luci-lib-xterm-4.18.0.apk",
+      "https://istore.istoreos.com/repo-apk/all/store/taskd-1.0.3-r2.apk"
+    ]
+  }
+}

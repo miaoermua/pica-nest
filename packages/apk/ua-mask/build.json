@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "Zesuy/UA-Mask",
+    "tag_regex": "^v?[0-9]+(?:\\.[0-9]+)*$",
+    "assets": [
+      {
+        "match": "^UAmask-[0-9].*-r[0-9]+[_-]([A-Za-z0-9_+.-]+)\\.apk$"
+      }
+    ]
+  }
+}

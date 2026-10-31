@@ -1,0 +1,25 @@
+pkgname = netdata
+appname = netdata
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for Netdata, the real-time system performance and health monitoring tool.
+url = https://github.com/netdata/netdata
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-netdata
+branch = master
+protocol = luci
+luci_desc = LuCI support for Netdata
+license = GPL-3.0-or-later
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Its control declares +netdata (the recipe's LUCI_DEPENDS), so the monitoring
+# agent rides along. It is a separate container rather than a merged tree, so
+# apk still records what it installed and either can be updated on its own.
+# Netdata's own library dependencies (libopenssl, zlib, libuv and so on) are
+# left to apk from the base feed rather than bundled, since every install has them.
+app = luci-app-netdata
+app = netdata
+base = luci-base

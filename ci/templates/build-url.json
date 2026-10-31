@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": ["all"],
+  "source": {
+    "type": "url",
+    "urls": ["https://example.com/repo/all/@ID@_{version}_all.ipk"]
+  }
+}

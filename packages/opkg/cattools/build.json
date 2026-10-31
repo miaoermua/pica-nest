@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "archive",
+    "url": "https://raw.githubusercontent.com/miaoermua/cattools/a5d094c852bb31a5d266f6a0ac8946ded8a60f3f/cattools.sh",
+    "rename": "cattools.sh",
+    "dest": "usr/lib/pica/src/cattools"
+  }
+}

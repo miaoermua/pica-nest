@@ -1,0 +1,14 @@
+pkgname = adguardhome-bin
+appname = adguardhome
+os = openwrt
+pica = 0.4.4
+pkgdesc = AdGuard Home is a network-wide software for blocking ads & tracking (Binary Core).
+url = https://github.com/AdguardTeam/AdGuardHome
+branch = master
+protocol = cli
+license = GPL-3.0-only
+source_availability = open
+packager = pica-pack
+type = cli
+targets = opkg
+app = adguardhome

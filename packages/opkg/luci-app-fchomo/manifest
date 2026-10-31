@@ -1,0 +1,30 @@
+pkgname = luci-app-fchomo
+appname = fchomo
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for fchomo, a mihomo gateway with transparent proxy, FullCone NAT and DNS hijacking.
+url = https://github.com/fcshark-org/openwrt-fchomo
+luci_url = https://github.com/fcshark-org/openwrt-fchomo
+branch = master
+protocol = luci
+luci_desc = LuCI app for fchomo
+license = GPL-2.0
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = opkg
+
+# Wrapped, not self-packed: the container is fantastic-packages' own ipk. The
+# live site carries only 25.12 now, so the 24.10 build comes from the archive
+# branch the project keeps for that release; it is the same package, built by
+# the same workflow.
+
+# The interface's control declares mihomo, firewall4, yq, wget-ssl,
+# coreutils-timeout and the two kmods, so those ride in from the device's feed
+# rather than being bundled here — mihomo is not in the official OpenWrt feeds,
+# and the fantastic-packages feed has to be enabled for the app to start.
+# luci-base is declared because the control does not list it.
+app = luci-app-fchomo
+app_i18n = luci-i18n-fchomo-{lang}
+base = luci-base

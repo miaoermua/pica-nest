@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "feed",
+    "feed": "immortalwrt",
+    "packages": [
+      "luci-app-adguardhome",
+      "adguardhome"
+    ],
+    "version_from": "adguardhome"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "pica": {
+    "repo": "miaoermua/pica",
+    "ref": "main"
+  },
+  "release": {
+    "repo": "miaoermua/pica-nest",
+    "tag": "latest"
+  },
+  "feeds": {
+    "immortalwrt": {
+      "opkg": "https://downloads.immortalwrt.org/releases/24.10.0/packages/{arch}",
+      "apk": "https://downloads.immortalwrt.org/releases/25.12.2/packages/{arch}"
+    },
+    "immortalwrt-snapshot": {
+      "apk": "https://downloads.immortalwrt.org/snapshots/packages/{arch}"
+    },
+    "openwrt": {
+      "opkg": "https://downloads.openwrt.org/releases/24.10.8/packages/{arch}",
+      "apk": "https://downloads.openwrt.org/releases/25.12.0/packages/{arch}"
+    },
+    "fantastic": {
+      "opkg": "https://raw.githubusercontent.com/fantastic-packages/releases/archive/24.10/packages/{arch}",
+      "apk": "https://fantastic-packages.github.io/releases/25.12/packages/{arch}"
+    }
+  },
+  "feed_repos": ["base", "packages", "luci", "routing", "telephony"],
+  "platforms": {
+    "all": "all",
+    "x86_64": "amd64",
+    "aarch64_generic": "arm64",
+    "aarch64_cortex-a53": "arm64",
+    "aarch64_cortex-a72": "arm64",
+    "aarch64_cortex-a76": "arm64",
+    "mipsel_24kc": "mipsel"
+  }
+}

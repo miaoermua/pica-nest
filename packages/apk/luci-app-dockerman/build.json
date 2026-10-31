@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72"
+  ],
+  "source": {
+    "type": "feed",
+    "feed": "immortalwrt",
+    "packages": [
+      "luci-app-dockerman",
+      "docker",
+      "dockerd",
+      "docker-compose",
+      "ttyd",
+      "ucode-mod-socket"
+    ]
+  }
+}

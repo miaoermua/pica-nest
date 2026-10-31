@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": ["x86_64", "aarch64_generic"],
+  "upstream": "github:OWNER/REPO",
+  "source": {
+    "type": "archive",
+    "url": "https://github.com/OWNER/REPO/releases/download/v{version}/@ID@-linux-{arch}.tar.gz",
+    "arch_map": { "x86_64": "amd64", "aarch64_generic": "arm64" },
+    "strip": 1,
+    "include": ["@ID@", "LICENSE"],
+    "dest": "usr/bin"
+  }
+}

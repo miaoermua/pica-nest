@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72"
+  ],
+  "source": {
+    "type": "feed",
+    "feed": "openwrt",
+    "packages": [
+      "python3-requests"
+    ]
+  }
+}

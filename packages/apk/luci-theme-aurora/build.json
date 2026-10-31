@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "eamonxg/luci-theme-aurora",
+    "tag_regex": "^v?[0-9]+(?:\\.[0-9]+)*$",
+    "assets": [
+      {
+        "match": "^luci-theme-aurora-[0-9].*\\.apk$"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "archive",
+    "url": "https://pkgs.tailscale.com/stable/tailscale_{version}_{arch}.tgz",
+    "arch_map": {
+      "x86_64": "amd64",
+      "aarch64_generic": "arm64",
+      "aarch64_cortex-a53": "arm64",
+      "aarch64_cortex-a72": "arm64",
+      "mipsel_24kc": "mipsle"
+    },
+    "strip": 1,
+    "include": [
+      "tailscaled",
+      "tailscale"
+    ],
+    "dest": "usr/sbin"
+  },
+  "upstream": "github:tailscale/tailscale"
+}

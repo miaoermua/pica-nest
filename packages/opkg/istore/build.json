@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "url",
+    "urls": [
+      "https://istore.istoreos.com/repo/all/store/luci-app-store_0.2.1-r1_all.ipk",
+      "https://istore.istoreos.com/repo/all/store/luci-lib-taskd_1.0.26_all.ipk",
+      "https://istore.istoreos.com/repo/all/store/luci-lib-xterm_4.18.0_all.ipk",
+      "https://istore.istoreos.com/repo/all/store/taskd_1.0.3-2_all.ipk"
+    ]
+  }
+}

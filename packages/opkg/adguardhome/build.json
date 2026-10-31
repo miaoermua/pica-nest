@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "rufengsuixing/luci-app-adguardhome",
+    "tag_regex": "^v?[0-9]+(?:[.-][0-9]+)*$",
+    "assets": [
+      {
+        "match": "^luci-app-adguardhome_.*_all\\.ipk$"
+      }
+    ]
+  }
+}

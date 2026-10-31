@@ -1,0 +1,17 @@
+# Build output and tools fetched by CI. Never committed: artifacts live in the
+# GitHub release, and `nest validate` refuses archives that reach Git anyway.
+/dist/
+/.pica/
+*.pkg.tar.gz
+*.ipk
+*.apk
+
+# Local caches
+/.mirror-cache/
+__pycache__/
+*.pyc
+
+# Editors and agents
+.DS_Store
+.workbuddy/
+.codebuddy/

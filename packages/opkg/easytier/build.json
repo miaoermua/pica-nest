@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "EasyTier/luci-app-easytier",
+    "tag": "v{version}",
+    "assets": [
+      {
+        "match": "^EasyTier-v{version}-(.*)-22\\.03\\.7\\.zip$",
+        "unzip": "^(?:easytier(?!-noweb)|luci-app-easytier|luci-i18n-easytier).*\\.ipk$"
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": ["x86_64", "aarch64_generic", "mipsel_24kc"],
+  "source": {
+    "type": "github",
+    "repo": "OWNER/REPO",
+    "tag_regex": "^v?[0-9]+(\\.[0-9]+)*$",
+    "assets": [
+      { "match": "^@ID@_.*_(x86_64|aarch64_generic|mipsel_24kc)\\.ipk$" },
+      { "match": "^luci-app-@ID@_.*_all\\.ipk$" }
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72"
+  ],
+  "source": {
+    "type": "archive",
+    "url": "https://github.com/XGHeaven/homebox/releases/download/v{version}/homebox-linux-{arch}-musl.tar.gz",
+    "arch_map": {
+      "x86_64": "amd64",
+      "aarch64_generic": "arm64",
+      "aarch64_cortex-a53": "arm64",
+      "aarch64_cortex-a72": "arm64"
+    },
+    "rename": "homebox",
+    "dest": "usr/sbin"
+  },
+  "upstream": "github:XGHeaven/homebox"
+}

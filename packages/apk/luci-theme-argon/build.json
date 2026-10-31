@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "all"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "jerrykuku/luci-theme-argon",
+    "tag_regex": "^v?[0-9]+(?:\\.[0-9]+)*$",
+    "assets": [
+      {
+        "match": "^luci-theme-argon-[0-9].*\\.apk$"
+      },
+      {
+        "match": "^luci-app-argon-config-[0-9].*\\.apk$",
+        "optional": true
+      }
+    ]
+  }
+}

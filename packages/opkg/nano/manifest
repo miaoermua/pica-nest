@@ -1,0 +1,14 @@
+pkgname = nano
+appname = nano
+os = openwrt
+pica = 0.4.4
+pkgdesc = GNU nano is a small and friendly text editor.
+url = https://www.nano-editor.org/
+branch = master
+protocol = cli
+license = GPL-3.0-or-later
+source_availability = open
+packager = pica-pack
+type = cli
+targets = opkg
+app = nano

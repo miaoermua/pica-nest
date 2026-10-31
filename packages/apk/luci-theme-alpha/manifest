@@ -1,0 +1,26 @@
+pkgname = luci-theme-alpha
+appname = luci-theme-alpha
+pkgver = 3.9.7_beta2
+pkgrel = 10
+os = openwrt
+pica = 0.4.4
+pkgdesc = Alpha theme for the LuCI web interface, a dark theme with a layout meant for large screens.
+url = https://github.com/derisamedia/luci-theme-alpha
+luci_url = https://github.com/derisamedia/luci-theme-alpha
+branch = master
+protocol = luci
+luci_desc = Alpha theme for the LuCI web interface
+license = GPL-3.0-only
+source_availability = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+
+# luci-app-alpha-config rides along: the theme's own control declares
+# Depends: luci-app-alpha-config, so shipping it without it produces a theme
+# that cannot render its settings. It stays a separate container rather than
+# being merged, so opkg still records what it installed and either can be
+# updated on its own.
+app = luci-theme-alpha
+app = luci-app-alpha-config

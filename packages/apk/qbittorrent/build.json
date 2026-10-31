@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72"
+  ],
+  "source": {
+    "type": "feed",
+    "feed": "immortalwrt",
+    "packages": [
+      "luci-app-qbittorrent",
+      "qbittorrent",
+      "luci-i18n-qbittorrent-zh-cn"
+    ],
+    "version_from": "qbittorrent"
+  }
+}

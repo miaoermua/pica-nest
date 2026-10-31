@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "name": "Pica 官方社区软件源",
+  "description": "Pica Official Community Software Source",
+  "managers": {
+    "apk": { "path": "apk/index.json" },
+    "opkg": { "path": "opkg/index.json" },
+    "pica": { "path": "pica/index.json" }
+  }
+}

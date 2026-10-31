@@ -1,0 +1,16 @@
+pkgname = vane
+appname = vane
+pkgver = 0.9.0
+pkgrel = 1
+os = openwrt
+pica = 0.4.4
+pkgdesc = A flow-based reverse proxy with multi-layer routing and programmable pipelines
+url = https://github.com/canmi21/vane
+branch = main
+license = MIT
+source_availability = open
+packager = pica-pack
+protocol = cli
+type = cli
+targets = opkg
+app = vane

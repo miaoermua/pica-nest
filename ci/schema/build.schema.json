@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/miaoermua/pica-nest/ci/schema/build.schema.json",
+  "title": "pica-nest package job",
+  "description": "packages/<mgr>/<id>/build.json — where the payload comes from and which arches to build. Validated by `python3 -m ci.nest validate`; this schema is for editor completion.",
+  "type": "object",
+  "required": ["matrix", "source"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "matrix": {
+      "description": "OpenWrt architectures to build, each one artifact per target. Keys of `platforms` in ci/config.json; `all` for arch-independent packages.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["all", "x86_64", "aarch64_generic", "aarch64_cortex-a53", "aarch64_cortex-a72", "aarch64_cortex-a76", "mipsel_24kc"]
+      }
+    },
+    "upstream": {
+      "description": "For url/archive sources with a pinned pkgver: where `nest bump` looks for new releases.",
+      "type": "string",
+      "pattern": "^github:[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+    },
+    "source": {
+      "oneOf": [
+        { "$ref": "#/$defs/feed" },
+        { "$ref": "#/$defs/github" },
+        { "$ref": "#/$defs/url" },
+        { "$ref": "#/$defs/archive" }
+      ]
+    }
+  },
+  "$defs": {
+    "arch_map": {
+      "description": "Matrix arch -> the name upstream uses in its URL or asset (x86_64 -> amd64).",
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "feed": {
+      "type": "object",
+      "required": ["type", "feed", "packages"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "feed" },
+        "feed": { "description": "A feed name from ci/config.json `feeds`.", "type": "string" },
+        "packages": {
+          "description": "Feed package names to bundle, resolved through the feed index per arch.",
+          "type": "array", "minItems": 1, "items": { "type": "string" }
+        },
+        "optional": {
+          "description": "Names bundled when the feed has them, skipped otherwise.",
+          "type": "array", "items": { "type": "string" }
+        },
+        "version_from": {
+          "description": "Which package's feed version becomes pkgver when the manifest has none. Default: the first of `packages`.",
+          "type": "string"
+        }
+      }
+    },
+    "github": {
+      "type": "object",
+      "required": ["type", "repo", "assets"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "github" },
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "tag": { "description": "Exact tag, may use {version} (e.g. v{version}). Omit to take the newest release.", "type": "string" },
+        "tag_regex": { "description": "Take the newest release whose tag matches.", "type": "string" },
+        "prerelease": { "description": "Consider pre-releases when no exact tag is given.", "type": "boolean" },
+        "arch_map": { "$ref": "#/$defs/arch_map" },
+        "assets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["match"],
+            "additionalProperties": false,
+            "properties": {
+              "match": { "description": "Regex for the asset name; {version} is substituted; one capture group = the arch.", "type": "string" },
+              "optional": { "type": "boolean" },
+              "unzip": { "description": "The asset is a zip: extract members whose name matches this regex.", "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "url": {
+      "type": "object",
+      "required": ["type", "urls"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "url" },
+        "urls": {
+          "description": "Container URLs; {arch}, {platform}, {version} are substituted.",
+          "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^https://" }
+        },
+        "arch_map": { "$ref": "#/$defs/arch_map" }
+      }
+    },
+    "archive": {
+      "type": "object",
+      "required": ["type", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "archive" },
+        "url": { "description": "Archive or bare file per arch; {arch}, {platform}, {version} are substituted.", "type": "string", "pattern": "^https://" },
+        "arch_map": { "$ref": "#/$defs/arch_map" },
+        "strip": { "description": "Leading path components to drop.", "type": "integer", "minimum": 0 },
+        "include": { "description": "Path prefixes to keep.", "type": "array", "items": { "type": "string" } },
+        "rename": { "description": "Name for the single resulting file (made executable).", "type": "string" },
+        "dest": { "description": "Directory under root/ to place the files in.", "type": "string" }
+      }
+    }
+  }
+}

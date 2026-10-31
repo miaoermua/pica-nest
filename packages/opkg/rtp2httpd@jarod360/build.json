@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53"
+  ],
+  "source": {
+    "type": "github",
+    "repo": "jarod360/rtp2httpd",
+    "tag_regex": "^v?[0-9]+(?:\\.[0-9]+)*(?:[-_].+)?$",
+    "assets": [
+      {
+        "match": "^rtp2httpd_.*_(x86_64|aarch64_generic|aarch64_cortex-a53)\\.ipk$"
+      },
+      {
+        "match": "^luci-app-rtp2httpd_.*_all\\.ipk$"
+      }
+    ]
+  }
+}

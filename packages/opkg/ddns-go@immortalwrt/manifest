@@ -1,0 +1,21 @@
+pkgname = ddns-go@immortalwrt
+appname = ddns-go
+url = https://github.com/jeessy2/ddns-go
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-ddns-go
+branch = immortalwrt
+protocol = luci
+os = openwrt
+pica = 0.4.4
+
+pkgdesc = Simple and easy to use DDNS service (ImmortalWrt LuCI2 version)
+packager = pica-pack
+license = MIT
+source_availability = open
+type = luci
+luci = js2
+targets = opkg
+
+# Install plan
+app = ddns-go
+app = luci-app-ddns-go
+app_i18n = luci-i18n-ddns-go-{lang}

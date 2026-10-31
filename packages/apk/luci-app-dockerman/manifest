@@ -1,0 +1,33 @@
+pkgname = luci-app-dockerman
+appname = dockerman
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for managing Docker containers on OpenWrt, with Compose support.
+url = https://github.com/latelee/dockerman
+luci_url = https://github.com/immortalwrt/luci/tree/master/applications/luci-app-dockerman
+branch = master
+protocol = luci
+luci_desc = LuCI Support for docker
+license = AGPL-3.0-only
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Everything this interface's control declares, not just the obvious one. Its
+# Makefile asks for luci-base, docker, ttyd, dockerd, docker-compose and
+# ucode-mod-socket, and each is something the interface calls at runtime: the
+# daemon, the Compose parser, a terminal for the container console, and the
+# socket client that talks to the daemon. `docker` alone is only the CLI
+# applet, so `dockerd` is not optional behind it.
+#
+# They stay separate containers. Merging them would lose what apk records, and
+# the interface can be updated without touching a daemon a user is running.
+app = luci-app-dockerman
+app = docker
+app = dockerd
+app = docker-compose
+app = ttyd
+app = ucode-mod-socket
+base = luci-base

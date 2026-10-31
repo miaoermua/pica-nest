@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": ["x86_64", "aarch64_generic", "aarch64_cortex-a53", "aarch64_cortex-a72", "mipsel_24kc"],
+  "source": {
+    "type": "feed",
+    "feed": "immortalwrt",
+    "packages": ["@ID@", "luci-app-@ID@", "luci-i18n-@ID@-zh-cn"],
+    "version_from": "@ID@"
+  }
+}

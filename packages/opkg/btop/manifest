@@ -1,0 +1,14 @@
+pkgname = btop
+appname = btop
+os = openwrt
+pica = 0.4.4
+pkgdesc = A monitor of system resources, with a beautiful and easy to use interface.
+url = https://github.com/aristocratos/btop
+branch = master
+protocol = cli
+license = Apache-2.0
+source_availability = open
+packager = pica-pack
+type = cli
+targets = opkg
+app = btop

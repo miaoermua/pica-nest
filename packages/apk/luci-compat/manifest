@@ -1,0 +1,23 @@
+pkgname = luci-compat
+appname = luci-compat
+os = openwrt
+pica = 0.4.4
+pkgdesc = Compatibility libraries that let an interface written for the older Lua LuCI run on the current one.
+url = https://github.com/immortalwrt/luci
+luci_url = https://github.com/immortalwrt/luci/tree/master/modules/luci-compat
+branch = master
+protocol = luci
+luci_desc = LuCI compatibility libraries
+license = GPL-2.0-only
+source_availability = open
+packager = pica-pack
+type = luci
+luci = lua1
+targets = apk
+
+# Its only declaration is +luci-lua-runtime, which is part of the base install
+# rather than something an interface adds: every Lua view needs the runtime,
+# so shipping it inside one interface would duplicate it for each. Declared as
+# a dependency instead, so apk resolves it if it is genuinely absent.
+app = luci-compat
+base = luci-base

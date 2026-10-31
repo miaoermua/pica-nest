@@ -1,0 +1,35 @@
+pkgname = luci-app-tailscale-community
+appname = tailscale
+os = openwrt
+pica = 0.4.4
+pkgdesc = LuCI interface for Tailscale, for viewing status and configuring nodes and the daemon.
+url = https://github.com/tailscale/tailscale
+luci_url = https://github.com/tokisaki-galaxy/luci-app-tailscale-community
+branch = master
+protocol = luci
+luci_desc = LuCI support for Tailscale
+license = GPL-3.0-or-later
+source_availability = open
+packager = pica-pack
+type = luci
+luci = js2
+targets = apk
+
+# Everything the recipe's LUCI_DEPENDS asks for: +tailscale +ip-full +luci-base.
+# The first is the client the interface configures; the second is the iproute2
+# set the daemon shells out to when it brings a tunnel up, so without it the
+# interface can save a configuration it cannot start. luci-base is the base
+# install, so it is declared rather than carried.
+#
+# Each stays a separate container so apk still records what it installed and
+# any one of them can be updated on its own.
+#
+# The two translations are carried as well: the interface is translated, and a
+# package that ships the app but not its catalogue opens in English on a device
+# whose locale is not. Only the Chinese ones — the languages this source's
+# users read — and the template says how the rest would be named.
+app = luci-app-tailscale-community
+app = tailscale
+app = ip-full
+app_i18n = luci-i18n-tailscale-community-{lang}
+base = luci-base

@@ -1,0 +1,98 @@
+name: upstream
+
+# Daily: is every package still buildable, did anything pinned get a release,
+# and did a feed publish a newer point release? Pinned packages that can move
+# safely are bumped in one pull request; feeds are only reported — a feed
+# release in ci/config.json moves when a person edits it.
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: upstream
+  cancel-in-progress: true
+
+jobs:
+  upstream:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Feed releases
+        run: python3 -m ci.nest feeds
+
+      - name: Bump pinned packages
+        id: bump
+        run: |
+          set -euo pipefail
+          python3 -m ci.nest bump --apply --json "$RUNNER_TEMP/bumps.json"
+          if git diff --quiet -- packages; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            python3 -m ci.nest validate --no-binaries
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A pull request opened with GITHUB_TOKEN does not trigger check.yml,
+      # so the bumped packages are planned here, against the real upstream.
+      - name: Plan the bumped packages
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          PACKAGES=$(python3 -c 'import json,sys; print(" ".join(b["package"] for b in json.load(open(sys.argv[1]))["bumps"]))' "$RUNNER_TEMP/bumps.json")
+          python3 -m ci.nest plan $PACKAGES --probe --allow-unreachable
+
+      - name: Open or refresh the pull request
+        if: steps.bump.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 - "$RUNNER_TEMP/bumps.json" > "$RUNNER_TEMP/body.md" <<'PY'
+          import json, sys
+          plan = json.load(open(sys.argv[1], encoding="utf-8"))
+          print("| package | from | to | release |\n|---|---|---|---|")
+          for b in plan["bumps"]:
+              print(f"| `{b['package']}` | {b['from']} | {b['to']} | {b['origin']} |")
+          if plan["skipped"]:
+              print("\n<details><summary>Left alone</summary>\n")
+              for key, reason in plan["skipped"]:
+                  print(f"- `{key}`: {reason}")
+              print("\n</details>")
+          print("\nEach bump matched every required asset (github) or every URL answered (url/archive). "
+                "Merging builds and publishes them.")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B upstream/bump
+          git commit -am "packages: bump to upstream releases"
+          git push --force origin upstream/bump
+          NUMBER=$(gh pr list --head upstream/bump --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUMBER" ]; then
+            gh pr edit "$NUMBER" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh pr create --base main --head upstream/bump --title "Bump packages to upstream releases" --body-file "$RUNNER_TEMP/body.md"
+          fi
+
+      # Last, so the bump above is not held back by an unrelated package that
+      # cannot be planned. Unreachable upstreams are warnings, not failures.
+      - name: Plan and probe every package
+        run: python3 -m ci.nest plan --all --probe --allow-unreachable --output "$RUNNER_TEMP/plan.json"
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: upstream-plan
+          path: ${{ runner.temp }}/plan.json
+          if-no-files-found: ignore
+          retention-days: 7

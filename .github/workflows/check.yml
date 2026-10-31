@@ -1,0 +1,53 @@
+name: check
+
+# Static checks, unit tests, and an online plan of the packages a PR touches.
+# Called by build.yml before anything is built.
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests
+        run: python3 -m unittest discover -s ci/tests -t .
+
+      - name: Mirror worker tests
+        run: node --test mirror/worker.test.mjs
+
+      - name: Validate the repository
+        run: python3 -m ci.nest validate
+
+      # Resolve the touched packages against their real upstream, without
+      # downloading payloads: a renamed asset or a package dropped from a feed
+      # shows up here, before the merge, instead of in the release build.
+      - name: Plan the packages this pull request touches
+        if: github.event_name == 'pull_request'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PACKAGES=$(python3 -m ci.nest changed --list \
+            --base "${{ github.event.pull_request.base.sha }}" --head "${{ github.event.pull_request.head.sha }}")
+          if [ -z "$PACKAGES" ]; then
+            echo "No package to plan."
+            exit 0
+          fi
+          python3 -m ci.nest plan $PACKAGES --probe --allow-unreachable

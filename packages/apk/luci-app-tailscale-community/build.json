@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../ci/schema/build.schema.json",
+  "matrix": [
+    "x86_64",
+    "aarch64_generic",
+    "aarch64_cortex-a53",
+    "aarch64_cortex-a72",
+    "mipsel_24kc"
+  ],
+  "source": {
+    "type": "feed",
+    "feed": "openwrt",
+    "packages": [
+      "luci-app-tailscale-community",
+      "luci-i18n-tailscale-community-zh-cn",
+      "tailscale",
+      "ip-full"
+    ],
+    "version_from": "tailscale"
+  }
+}
