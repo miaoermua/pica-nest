@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       packages:
-        description: "Packages to build, space-separated <mgr>/<id> (empty: use 'all')"
+        description: "Packages, space-separated <mgr>/<id> (e.g. opkg/ttyd apk/node); ignored when 'all' is ticked"
         type: string
         required: false
       all:
@@ -47,11 +47,11 @@ jobs:
       packages: ${{ steps.select.outputs.packages }}
       removed: ${{ steps.select.outputs.removed }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -88,7 +88,7 @@ jobs:
           echo "repo=$(python3 -m ci.nest config pica.repo)" >> "$GITHUB_OUTPUT"
           echo "ref=$(python3 -m ci.nest config pica.ref)" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         if: steps.select.outputs.packages != ''
         with:
           repository: ${{ steps.pica.outputs.repo }}
@@ -103,7 +103,7 @@ jobs:
       - name: Cache pica-pack
         id: pica_cache
         if: steps.select.outputs.packages != ''
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: .pica/target/release/pica-pack
           key: pica-pack-${{ runner.os }}-${{ steps.pica_sha.outputs.sha }}
@@ -116,7 +116,7 @@ jobs:
 
       - name: Restore the download cache
         if: steps.select.outputs.packages != ''
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.cache/pica-nest
           key: downloads-${{ hashFiles('ci/config.json', 'packages/**/build.json', 'packages/**/manifest') }}
@@ -133,7 +133,7 @@ jobs:
             --pica-pack .pica/target/release/pica-pack \
             --allow-partial
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always() && steps.select.outputs.packages != ''
         with:
           name: dist
@@ -156,15 +156,15 @@ jobs:
     steps:
       # The tip of main, not the commit that triggered the run: r/ has to be
       # merged into whatever the previous publish committed.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: main
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         if: needs.build.outputs.packages != ''
         with:
           name: dist
@@ -247,11 +247,11 @@ jobs:
     if: always() && needs.build.outputs.packages != ''
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist

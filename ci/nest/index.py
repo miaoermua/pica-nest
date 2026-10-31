@@ -255,12 +255,21 @@ def expected_keys(packages, config):
 
 
 def merge(r_dir, build_output, packages, config, release_base, release_list=None):
-    """Fold a build into r/, drop entries of removed packages, relayout. Returns a summary."""
+    """Fold a build into r/, drop entries of removed packages, relayout. Returns a summary.
+
+    A published filename is immutable. pica-pack stamps `builddate` into every
+    artifact, so rebuilding an unchanged package yields the same name with new
+    bytes; overwriting the asset would hand every device still holding the old
+    index a file whose sha256 no longer matches. Such a rebuild keeps the
+    published entry and is reported in `kept` — to republish a package under
+    the same version, bump its `pkgrel`.
+    """
     descriptor = load_descriptor(r_dir)
     entries = read_entries(r_dir)
     declared = manager_paths(descriptor)
     released = []
     changed = []
+    kept = []
     built = build_entries(build_output) if build_output and os.path.isdir(build_output) else {}
     for mgr, items in built.items():
         if mgr not in declared:
@@ -279,13 +288,14 @@ def merge(r_dir, build_output, packages, config, release_base, release_list=None
                 raise util.NestError("; ".join(problems))
             key = entry_key(entry)
             previous = entries[mgr].get(key)
+            if previous is not None and previous.get("filename") == entry["filename"]:
+                if previous.get("sha256") != entry["sha256"]:
+                    kept.append(f"{mgr} {entry['filename']}")
+                continue
             if previous is None:
                 changed.append(f"+ {mgr} {entry['filename']}")
-            elif previous.get("sha256") != entry["sha256"]:
-                if previous.get("filename") == entry["filename"]:
-                    changed.append(f"~ {mgr} {entry['filename']} (rebuilt, same name)")
-                else:
-                    changed.append(f"~ {mgr} {previous.get('filename')} -> {entry['filename']}")
+            else:
+                changed.append(f"~ {mgr} {previous.get('filename')} -> {entry['filename']}")
             entries[mgr][key] = entry
             released.append(os.path.abspath(artifact))
     wanted = expected_keys(packages, config)
@@ -300,7 +310,7 @@ def merge(r_dir, build_output, packages, config, release_base, release_list=None
         with open(release_list, "w", encoding="utf-8", newline="\n") as handle:
             for artifact in sorted(released):
                 handle.write(artifact + "\n")
-    return {"changed": changed, "written": written, "removed": removed, "released": released}
+    return {"changed": changed, "kept": kept, "written": written, "removed": removed, "released": released}
 
 
 def referenced_filenames(r_dir):

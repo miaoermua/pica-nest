@@ -1,19 +1,13 @@
 {
   "$schema": "../../../ci/schema/build.schema.json",
   "matrix": [
-    "x86_64",
-    "aarch64_generic",
-    "aarch64_cortex-a53",
-    "aarch64_cortex-a72"
+    "x86_64"
   ],
   "source": {
     "type": "archive",
     "url": "https://github.com/fastfetch-cli/fastfetch/releases/download/{version}/fastfetch-musl-{arch}.tar.gz",
     "arch_map": {
-      "x86_64": "amd64",
-      "aarch64_generic": "aarch64",
-      "aarch64_cortex-a53": "aarch64",
-      "aarch64_cortex-a72": "aarch64"
+      "x86_64": "amd64"
     },
     "strip": 1,
     "include": [

@@ -17,3 +17,7 @@ type = theme
 luci = lua1
 targets = apk
 app = luci-theme-argon
+
+# The settings page ships beside the theme in every release, as an optional
+# asset. Optional here too: a release without it still installs the theme.
+app = luci-app-argon-config?

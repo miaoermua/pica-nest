@@ -99,6 +99,11 @@ def cmd_index(args, config):
     )
     for line in summary["changed"]:
         util.log(line)
+    if summary["kept"]:
+        util.warn(
+            f"{len(summary['kept'])} artifact(s) rebuilt under a name already published; the published "
+            "file is kept. Bump pkgrel to republish: " + ", ".join(summary["kept"])
+        )
     for relative in summary["written"]:
         util.log(f"wrote r/{relative}")
     for relative in summary["removed"]:

@@ -217,8 +217,10 @@ class Staging(TempRepo):
             shutil.copyfile(os.path.join(fixtures, "demo" if "/demo_" in url else "luci"), dest)
 
         stage_root = os.path.join(self.root, "stage")
-        with mock.patch.object(net, "download", side_effect=fake_download):
+        with mock.patch.object(net, "download", side_effect=fake_download), \
+                mock.patch("ci.nest.util.warn") as warned:
             stages = stage.fetch(result, stage_root)
+        self.assertIn("optional luci-i18n-demo-zh-cn_1_all.ipk skipped", warned.call_args[0][0])
         staged = stages["x86_64"]
         with open(os.path.join(staged, "manifest"), encoding="utf-8") as handle:
             text = handle.read()

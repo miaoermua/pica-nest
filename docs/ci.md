@@ -62,6 +62,23 @@ python3 -m ci.nest plan apk/adguardhome apk/luci-app-passwall --probe  # 指定
 - **顺序**：上传资产 → 下载回来比对 sha256 → `nest validate` → 提交 `r/`（`[skip ci]`）→ 删除两代索引都不引用的资产。
   中途失败时 `r/` 保持原样，重跑即可。
 - 构建串行（`concurrency: build-main`），每次发布都合并进上一次提交的 `r/`。
+- **已发布的文件名不可变**：pica-pack 每次打包都写入 `builddate`，同版本重建会得到同名不同字节的产物。
+  这种情况保留已发布的条目和资产，不覆盖（否则持有旧索引的设备会校验失败），并给出 warning。
+  改了 scripts/、root/ 或 manifest 想重新发布同一版本，**把 `pkgrel` 加 1**。
+
+### 手动触发（Run workflow）
+
+| 输入 | 说明 |
+|---|---|
+| Use workflow from | 选 `main` 才会发布；其他分支 / tag 只构建，产物在 artifact `dist` 里保留 7 天 |
+| packages | 空格分隔：`opkg/ttyd apk/node`（不要用逗号）。名字写错整次构建直接失败 |
+| all | 重建全部包，勾上后忽略 packages；两个都空会报错 |
+| publish | 默认勾选。取消则只构建不发布，用来试 feed 新版本或排查问题 |
+
+- 重建的包如果版本没变（同名），不会重新上传，`r/` 也不会变——“全部重建”可以放心点，它只会发布真正有新版本的包。
+- 同一时间只跑一个构建。排队时 GitHub 只保留**最新的一个**等待中的运行，更早排队的会被取消；
+  连续点了几次只会生效最后一次，被取消的那次需要时再点。
+- 有包失败时，其余成功的包照常发布，`report` job 标红并列出失败原因；修好后只需手动重跑失败的那几个包。
 
 ## 本地命令
 

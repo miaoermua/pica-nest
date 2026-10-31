@@ -100,6 +100,38 @@ class IndexLayout(TempRepo):
         self.assertTrue(any(line.startswith("- opkg") for line in summary["changed"]))
         self.assertEqual(index.layout_errors(self.r, BASE), [])
 
+    def test_published_name_is_immutable(self):
+        self.write_descriptor()
+        self.add_package("opkg/demo", LUCI_MANIFEST.format(mgr="opkg"), {
+            "matrix": ["x86_64"], "source": {"type": "feed", "feed": "immortalwrt", "packages": ["demo"]}})
+        published = entry(sha="b" * 64)
+        util.write_json(os.path.join(self.r, "opkg", "index.json"),
+                        {"schema": 1, "mgr": "opkg", "generated_at": "x", "packages": [published]})
+
+        def build(pkgver):
+            out = os.path.join(self.root, f"out-{pkgver}")
+            os.makedirs(os.path.join(out, "opkg"))
+            item = entry(pkgver=pkgver)
+            with open(os.path.join(out, "opkg", item["filename"]), "wb") as handle:
+                handle.write(b"new bytes")
+            item["sha256"] = util.sha256_file(os.path.join(out, "opkg", item["filename"]))
+            item["csize"] = 9
+            item.pop("download_url")
+            util.write_json(os.path.join(out, "opkg", "index.json"), {"schema": 1, "mgr": "opkg", "packages": [item]})
+            return out
+
+        packages = package.discover(self.packages)
+        summary = index.merge(self.r, build("1.0"), packages, self.config, BASE)
+        self.assertEqual(summary["released"], [])
+        self.assertEqual(len(summary["kept"]), 1)
+        self.assertNotIn("opkg/index.json", summary["written"], "an unchanged index is not rewritten")
+        document = util.read_json(os.path.join(self.r, "opkg", "index.json"))
+        self.assertEqual(document["packages"][0]["sha256"], "b" * 64, "the published entry stays")
+
+        summary = index.merge(self.r, build("1.1"), packages, self.config, BASE)
+        self.assertEqual(len(summary["released"]), 1)
+        self.assertEqual(summary["kept"], [])
+
     def test_merge_refuses_a_lying_index(self):
         self.write_descriptor()
         out = os.path.join(self.root, "out")

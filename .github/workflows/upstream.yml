@@ -25,9 +25,9 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -44,6 +44,17 @@ jobs:
           else
             python3 -m ci.nest validate --no-binaries
             echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Nothing left to bump (main caught up by hand, or every candidate became
+      # unsafe): an open bump PR would only propose stale changes. Close it.
+      - name: Close the pull request when nothing is left to bump
+        if: steps.bump.outputs.changed == 'false'
+        run: |
+          NUMBER=$(gh pr list --head upstream/bump --state open --json number --jq '.[0].number // empty')
+          if [ -n "$NUMBER" ]; then
+            gh pr close "$NUMBER" --delete-branch \
+              --comment "Nothing is left to bump on main; closing. A new pull request opens when upstream moves again."
           fi
 
       # A pull request opened with GITHUB_TOKEN does not trigger check.yml,
@@ -89,7 +100,7 @@ jobs:
       - name: Plan and probe every package
         run: python3 -m ci.nest plan --all --probe --allow-unreachable --output "$RUNNER_TEMP/plan.json"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: upstream-plan
