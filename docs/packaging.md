@@ -140,16 +140,11 @@ pica-pack 来自 [miaoermua/pica](https://github.com/miaoermua/pica)：`cargo bu
 
 apk-tools 3.x（ADB）容器的元数据只能读出名字与版本；读不出的记为“未校验”，不当作通过。
 
-## 与 pica-maker-skill 的对应
+## pica-maker-skill
 
-[pica-maker-skill](https://github.com/miaoermua/pica-maker-skill) 写的是旧布局，路径对照：
+[pica-maker-skill](https://github.com/miaoermua/pica-maker-skill) 按本布局编写：`SKILL.md` 是加包流程，
+`references/habits.md` 收录 CI 里出现过的报错与原因，`scripts/feed_lookup.py` 用本仓库的解析器按架构查询 feed：
 
-| skill 里 | 现在 |
-|---|---|
-| `ci/<mgr>/<id>/build.json`、`src/<mgr>/<id>/manifest` | `packages/<mgr>/<id>/build.json`、`manifest` |
-| `python3 .github/scripts/validate_repo.py` | `python3 -m ci.nest validate` |
-| `fetch_assets.py` + `pica-pack build` | `python3 -m ci.nest build <mgr>/<id> --out out` |
-| `scripts/check_urls.py` | `python3 -m ci.nest plan <mgr>/<id> --probe` |
-| `scripts/list_feed.py where` | feed 源按包名自动查找子目录，无需手查 |
-| provider `http_template` / `tarball` | `feed`（或 `url`）/ `archive` |
-| `r/repo.json` | 已删除；`r/index.json` + 后端索引 |
+```bash
+python3 ../pica-maker-skill/scripts/feed_lookup.py --nest . --mgr apk qbittorrent luci-app-qbittorrent
+```
