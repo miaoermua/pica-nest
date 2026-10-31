@@ -6,7 +6,6 @@
  * artifacts exist and what they hash to. Both are read from the repository on
  * a cache miss, so adding a package never needs a redeploy.
  *
- *   /__self                                   which repository this deployment reads
  *   /  /index.json  /r  /r/  /r/index.json   entry descriptor
  *   /<path>  /r/<path>                        a backend index the descriptor declares,
  *                                             download_url re-addressed to this origin
@@ -53,12 +52,6 @@ function json(body, status = 200, extra = {}) {
       ...extra,
     },
   });
-}
-
-/** Which repository this deployment reads. Printed, never guessed, so a
- * worker left pointing at a previous name is visible in one request. */
-export function upstreamTag(env) {
-  return `${env.GITHUB_REPO || "unset"}@${env.BRANCH || "main"}`;
 }
 
 function rawUrl(env, relative) {
@@ -188,18 +181,8 @@ export default {
     }
     if (request.method !== "GET" && request.method !== "HEAD") return json({ error: "GET and HEAD only" }, 405);
     try {
-      if (path === "/__self") {
-        // No upstream read: this answers even when the repository is unreachable,
-        // and tells an operator which repo a stale deployment was built for.
-        return json(
-          { repo: env.GITHUB_REPO || null, branch: env.BRANCH || "main" },
-          200,
-          { "cache-control": "no-store" },
-        );
-      }
-      const tag = upstreamTag(env);
       if (["/", "/index.json", "/r", "/r/", "/r/index.json"].includes(path)) {
-        return json(await readJson(env, cache, url.origin, DESCRIPTOR), 200, { "x-pica-upstream": tag });
+        return json(await readJson(env, cache, url.origin, DESCRIPTOR));
       }
       const release = path.match(/^\/releases\/([^/]+)\/([^/]+)$/);
       if (release) {
@@ -214,7 +197,7 @@ export default {
         const descriptor = await readJson(env, cache, url.origin, DESCRIPTOR);
         if (!declaredPaths(descriptor).has(relative)) return json({ error: `no such index: ${relative}` }, 404);
         const index = await readJson(env, cache, url.origin, relative);
-        return json(rewriteIndex(index, env, url.origin), 200, { "x-pica-upstream": tag });
+        return json(rewriteIndex(index, env, url.origin));
       }
       return json({ error: `no such route: ${path}` }, 404);
     } catch (err) {

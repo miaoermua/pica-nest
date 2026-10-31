@@ -11,7 +11,6 @@
     new MGR/ID --source TYPE     scaffold a package from ci/templates
     report FILE                  print a build report; non-zero when anything failed
     verify-published --list F    download what was uploaded and compare with r/
-    mirror --url U               is the deployment this repository, and is it current
     stale --assets F             release assets no index references any more
     config KEY                   print a value from ci/config.json (e.g. pica.ref)
 
@@ -25,22 +24,13 @@ import shutil
 import sys
 
 from . import build as build_module
-from . import changes, config as config_module, index, mirror, package, publish, sources, upstream, util, validate
+from . import changes, config as config_module, index, package, publish, sources, upstream, util, validate
 
 
 def _select(names, every):
     if every or not names:
         return package.discover()
     return package.select(names)
-
-
-def cmd_mirror(args, config):
-    expected = args.repo or config.release.get("repo")
-    problems = mirror.drift(args.url, expected)
-    for problem in problems:
-        util.error(problem)
-    util.log(f"{args.url}: {len(problems)} problem(s)")
-    return 1 if problems else 0
 
 
 def cmd_validate(args, config):
@@ -337,11 +327,6 @@ def parser():
     p = sub.add_parser("report", help="print a build report")
     p.add_argument("file")
     p.set_defaults(func=cmd_report)
-
-    p = sub.add_parser("mirror", help="check a deployed mirror against r/")
-    p.add_argument("--url", required=True, help="mirror origin, e.g. https://pica-nest.miaoer.net")
-    p.add_argument("--repo", help="expected owner/name (default: release.repo)")
-    p.set_defaults(func=cmd_mirror)
 
     p = sub.add_parser("verify-published", help="compare uploaded assets with r/")
     p.add_argument("--list", required=True)

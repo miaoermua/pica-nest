@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import worker, { declaredPaths, releaseAsset, rewriteIndex, upstreamTag } from "./worker.js";
+import worker, { declaredPaths, releaseAsset, rewriteIndex } from "./worker.js";
 
 const ENV = { GITHUB_REPO: "owner/nest", BRANCH: "main" };
 const ORIGIN = "https://mirror.example";
@@ -66,19 +66,6 @@ test("a declared index is served with this origin's download addresses", async (
   }
 });
 
-test("a deployment names the repository it reads", async () => {
-  const ctx = setup();
-  const response = await ctx.get("/__self");
-  assert.equal(response.status, 200);
-  assert.deepEqual(await response.json(), { repo: "owner/nest", branch: "main" });
-  assert.equal(response.headers.get("cache-control"), "no-store");
-  assert.equal(ctx.calls.length, 0, "no upstream read: this must answer when raw is down");
-  // Every index response carries the same fact, so `curl -I` on the address a
-  // device actually uses answers "which repo is this mirror serving?" too.
-  assert.equal((await ctx.get("/")).headers.get("x-pica-upstream"), "owner/nest@main");
-  assert.equal((await ctx.get("/opkg/index.json")).headers.get("x-pica-upstream"), "owner/nest@main");
-});
-
 test("an undeclared path is not proxied", async () => {
   const ctx = setup();
   const response = await ctx.get("/apk/index.json");
@@ -129,6 +116,4 @@ test("helpers", () => {
   assert.equal(releaseAsset(`${GH}t1/${NAME}`, "different", ENV), null);
   assert.equal(releaseAsset(`https://github.com/else/repo/releases/download/t/${NAME}`, NAME, ENV), null);
   assert.equal(rewriteIndex({ schema: 1 }, ENV, ORIGIN).packages, undefined);
-  assert.equal(upstreamTag(ENV), "owner/nest@main");
-  assert.equal(upstreamTag({}), "unset@main", "a deployment with no repo says so");
 });
