@@ -7,6 +7,7 @@
     changed --base A --head B    packages a push has to rebuild
     bump [PKG...] [--apply]      move pinned versions to upstream releases
     feeds                        newer point releases of the feeds in ci/config.json
+    outdated [PKG...] [--list]   packages whose upstream has a build r/ does not publish
     new MGR/ID --source TYPE     scaffold a package from ci/templates
     report FILE                  print a build report; non-zero when anything failed
     verify-published --list F    download what was uploaded and compare with r/
@@ -167,6 +168,43 @@ def cmd_feeds(args, config):
     return 0
 
 
+def cmd_outdated(args, config):
+    """Packages whose current upstream would publish a file r/ does not have.
+
+    Covers what a push cannot see: a snapshot or branch feed that moved in
+    place, and a package whose last build failed. Only packages that plan
+    cleanly are listed; one that cannot be planned is reported, not retried.
+    """
+    published = index.referenced_filenames(index.R_DIR)
+    outdated = []
+    for item in _select(args.packages, False):
+        if item.errors(config):
+            continue
+        result = sources.plan(item, config)
+        if not result.ok:
+            util.warn(f"{item.key}: cannot plan: {'; '.join(result.errors)}")
+            continue
+        missing = []
+        for arch_plan in result.arches:
+            for target in item.targets:
+                name = index.expected_filename({
+                    "pkgname": item.pkgname, "pkgver": arch_plan.version,
+                    "pkgrel": item.manifest.get("pkgrel") or "1", "pkgmgr": target,
+                    "platform": arch_plan.platform, "arch": arch_plan.arch,
+                })
+                if name not in published:
+                    missing.append(name)
+        if missing:
+            outdated.append(item.key)
+            if not args.list:
+                util.log(f"{item.key}: {len(missing)} artifact(s) not published, e.g. {missing[0]}")
+    if args.list:
+        print(" ".join(outdated))
+    else:
+        util.log(f"{len(outdated)} package(s) outdated")
+    return 0
+
+
 def cmd_new(args, config):
     mgr, _, ident = args.package.replace("\\", "/").strip("/").removeprefix("packages/").partition("/")
     if mgr not in util.BACKENDS or not ident:
@@ -275,6 +313,11 @@ def parser():
 
     p = sub.add_parser("feeds", help="newer point releases of the configured feeds")
     p.set_defaults(func=cmd_feeds)
+
+    p = sub.add_parser("outdated", help="packages whose upstream has a build r/ does not publish")
+    p.add_argument("packages", nargs="*")
+    p.add_argument("--list", action="store_true", help="print only the package keys, space-separated")
+    p.set_defaults(func=cmd_outdated)
 
     p = sub.add_parser("new", help="scaffold a package")
     p.add_argument("package", help="<mgr>/<id>")

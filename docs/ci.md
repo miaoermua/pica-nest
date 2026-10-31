@@ -50,7 +50,7 @@ python3 -m ci.nest plan apk/adguardhome apk/luci-app-passwall --probe  # 指定
 |---|---|---|
 | `check.yml` | PR；被 build.yml 调用 | 单元测试、Worker 测试、`nest validate`；PR 还会对改动的包做联网 plan（HEAD 每个 URL） |
 | `build.yml` | push 到 main（`packages/` `ci/` `r/index.json`）；手动 | 选包 → 编译 pica-pack → `nest build` → 上传 Release → 校验 → 提交 `r/` → 清理旧资产 → 报告 |
-| `upstream.yml` | 每天 04:17 UTC；手动 | `nest feeds`；`nest bump --apply` 开/更新 `upstream/bump` PR；全量 plan --probe |
+| `upstream.yml` | 每天 04:17 UTC；手动 | `nest feeds`；`nest bump --apply` 开/更新 `upstream/bump` PR；`nest outdated` 找出上游原地更新（snapshot / 分支 feed）或上次构建失败的包，派发 build；全量 plan --probe |
 
 ### build.yml 细节
 
@@ -89,6 +89,7 @@ python3 -m ci.nest build opkg/ttyd --out out --pica-pack ./pica-pack --cache ~/.
 python3 -m ci.nest index --build out              # 把构建合并进 r/（本地调试用，别提交）
 python3 -m ci.nest bump                           # 预览可升级的固定版本包；--apply 写入
 python3 -m ci.nest feeds                          # feed 有没有更新的点版本
+python3 -m ci.nest outdated                       # 上游有新构建、但 r/ 还没发布的包
 python3 -m ci.nest config release.tag             # 读配置
 python3 -m unittest discover -s ci/tests -t .     # 单元测试
 node --test mirror/worker.test.mjs                # Worker 测试

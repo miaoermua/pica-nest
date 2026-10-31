@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: upstream
@@ -94,6 +95,21 @@ jobs:
           else
             gh pr create --base main --head upstream/bump --title "Bump packages to upstream releases" --body-file "$RUNNER_TEMP/body.md"
           fi
+
+      # A push only rebuilds what changed in Git. A snapshot or branch feed moves
+      # in place, and a package whose last build failed is simply missing — both
+      # show up here as a build r/ does not publish. Dispatching is one of the
+      # two events a GITHUB_TOKEN may trigger (needs `actions: write`).
+      - name: Build packages whose upstream moved in place
+        run: |
+          set -euo pipefail
+          PACKAGES=$(python3 -m ci.nest outdated --list)
+          if [ -z "$PACKAGES" ]; then
+            echo "Every package is published at its current upstream build."
+            exit 0
+          fi
+          echo "Dispatching build for: $PACKAGES"
+          gh workflow run build.yml --ref main -f packages="$PACKAGES" -f publish=true
 
       # Last, so the bump above is not held back by an unrelated package that
       # cannot be planned. Unreachable upstreams are warnings, not failures.
