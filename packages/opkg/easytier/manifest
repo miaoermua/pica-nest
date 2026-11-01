@@ -1,6 +1,6 @@
 pkgname = easytier
 appname = easytier
-pkgver = 2.5.0
+pkgver = 2.6.4
 pkgrel = 1
 os = openwrt
 pica = 0.4.4
