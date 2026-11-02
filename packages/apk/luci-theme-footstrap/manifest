@@ -1,6 +1,6 @@
 pkgname = luci-theme-footstrap
 appname = luci-theme-footstrap
-pkgver = 0.14.18
+pkgver = 0.14.20
 pkgrel = 1
 os = openwrt
 pica = 0.4.4
