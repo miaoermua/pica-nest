@@ -1,6 +1,6 @@
 pkgname = fastfetch
 appname = fastfetch
-pkgver = 2.70.0
+pkgver = 2.71.0
 pkgrel = 1
 os = openwrt
 pica = 0.4.4
