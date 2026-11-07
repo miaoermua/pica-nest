@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "mgr": "apk",
-  "generated_at": "2026-11-06T12:15:44Z",
+  "generated_at": "2026-11-07T11:13:14Z",
   "packages": [
     {
       "pkgname": "adguardhome",
@@ -2404,13 +2404,13 @@
     },
     {
       "pkgname": "luci-app-passwall",
-      "pkgver": "26.10.22",
+      "pkgver": "26.10.29",
       "pkgrel": "1",
       "pkgmgr": "apk",
       "platform": "amd64",
       "arch": "x86_64",
-      "filename": "luci-app-passwall-26.10.22-1-amd64-x86_64-apk.pkg.tar.gz",
-      "sha256": "f2cba31311294aaf50ae645aa9dfa0afde80f9b20062234642e8cb1204a3b136",
+      "filename": "luci-app-passwall-26.10.29-1-amd64-x86_64-apk.pkg.tar.gz",
+      "sha256": "5ad3179c7444e1aa901b498d6b22ac37f6231136a39d050b798e724d881f0f95",
       "appname": "passwall",
       "os": "openwrt",
       "branch": "master",
@@ -2423,9 +2423,9 @@
       "license": "GPL-3.0",
       "source_availability": "open",
       "pica": "0.4.4",
-      "download_url": "https://github.com/miaoermua/pica-nest/releases/download/latest/luci-app-passwall-26.10.22-1-amd64-x86_64-apk.pkg.tar.gz",
+      "download_url": "https://github.com/miaoermua/pica-nest/releases/download/latest/luci-app-passwall-26.10.29-1-amd64-x86_64-apk.pkg.tar.gz",
       "size": 0,
-      "csize": 877521,
+      "csize": 880416,
       "manifest": {
         "app": "luci-app-passwall",
         "app_i18n": "luci-i18n-passwall-{lang}",
@@ -2448,7 +2448,7 @@
           "geoview?"
         ],
         "branch": "master",
-        "builddate": "1793448344",
+        "builddate": "1794049951",
         "license": "GPL-3.0",
         "luci": "lua1",
         "luci_desc": "LuCI support for PassWall",
@@ -2460,7 +2460,7 @@
         "pkgmgr": "apk",
         "pkgname": "luci-app-passwall",
         "pkgrel": "1",
-        "pkgver": "26.10.22",
+        "pkgver": "26.10.29",
         "platform": "amd64",
         "protocol": "luci",
         "size": "0",
