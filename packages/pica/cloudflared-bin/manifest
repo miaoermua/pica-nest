@@ -1,6 +1,6 @@
 pkgname = cloudflared-bin
 appname = cloudflared
-pkgver = 2026.10.7
+pkgver = 2026.11.0
 pkgrel = 1
 os = openwrt
 pica = 0.4.4
