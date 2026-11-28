@@ -1,6 +1,6 @@
 pkgname = tailscale-bin
 appname = tailscale
-pkgver = 1.104.5
+pkgver = 1.104.7
 pkgrel = 1
 os = openwrt
 pica = 0.4.4
